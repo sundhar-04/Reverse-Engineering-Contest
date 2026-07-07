@@ -1,0 +1,11 @@
+input,expected_output,test_order,is_sample
+1,Odd,0,true
+2,Even,1,true
+100,Special,2,false
+3,Odd,3,true
+4,Even,4,true
+200,Special,5,false
+5,Odd,6,true
+10,Even,7,true
+300,Special,8,false
+7,Odd,9,true
