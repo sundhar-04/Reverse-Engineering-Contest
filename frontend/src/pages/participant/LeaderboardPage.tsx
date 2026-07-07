@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { leaderboardAPI } from '../../services/api'
 import type { LeaderboardEntry } from '../../types/api'
+import PageHeader from '../../components/PageHeader'
+import RankBadge from '../../components/RankBadge'
+import LoadingSkeleton from '../../components/LoadingSkeleton'
+import EmptyState from '../../components/EmptyState'
 
 export default function LeaderboardPage() {
   const { contestId } = useParams<{ contestId: string }>()
@@ -57,22 +61,23 @@ export default function LeaderboardPage() {
 
   const rollNumber = localStorage.getItem('roll_number')
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+  if (loading) return <LoadingSkeleton variant="table" count={8} />
 
   return (
-    <div className="min-h-screen bg-surface-900">
-      <header className="border-b border-surface-700 px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center gap-4">
-          <Link to={`/contest/${contestId}`} className="text-primary-400 hover:text-primary-300">&larr; Dashboard</Link>
-          <h1 className="text-xl font-bold">Leaderboard</h1>
-        </div>
-      </header>
+    <div className="animate-fade-in">
+      <PageHeader
+        title="Leaderboard"
+        backLink={`/contest/${contestId}`}
+      />
 
-      <main className="max-w-4xl mx-auto px-6 py-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
         {entries.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">No participants yet</div>
+          <EmptyState
+            title="No participants yet"
+            description="Leaderboard will populate once participants start submitting solutions."
+          />
         ) : (
-          <div className="bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
+          <div className="bg-surface-800 rounded-xl border border-surface-700 shadow-sm overflow-hidden">
             <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-surface-700/50 text-sm font-medium text-gray-400">
               <div className="col-span-1">#</div>
               <div className="col-span-4">Name</div>
@@ -88,14 +93,14 @@ export default function LeaderboardPage() {
                   entry.roll_number === rollNumber ? 'bg-primary-600/10 border-primary-500/30' : ''
                 }`}
               >
-                <div className="col-span-1 font-bold">
-                  {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}
+                <div className="col-span-1">
+                  <RankBadge rank={entry.rank} />
                 </div>
                 <div className="col-span-4 font-medium truncate">{entry.name}</div>
                 <div className="col-span-2 text-gray-400">{entry.roll_number}</div>
                 <div className="col-span-2">
                   {entry.is_accepted ? (
-                    <span className="text-green-400 text-xs font-medium">✓ Accepted</span>
+                    <span className="text-green-400 text-xs font-medium">Accepted</span>
                   ) : (
                     <span className="text-yellow-400 text-xs">Pending</span>
                   )}

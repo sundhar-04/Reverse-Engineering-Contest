@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { contestAPI, problemAPI } from '../../services/api'
 import type { Contest, Problem } from '../../types/api'
+import LoadingSkeleton from '../../components/LoadingSkeleton'
+import StatusBadge from '../../components/StatusBadge'
 
 export default function ContestDashboard() {
   const { contestId } = useParams<{ contestId: string }>()
@@ -9,6 +11,7 @@ export default function ContestDashboard() {
   const [contest, setContest] = useState<Contest | null>(null)
   const [problem, setProblem] = useState<Problem | null>(null)
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
+  const [loading, setLoading] = useState(true)
   const participantName = localStorage.getItem('participant_name')
   const participantId = localStorage.getItem('participant_id')
 
@@ -39,6 +42,8 @@ export default function ContestDashboard() {
       if (statusRes.data.time_remaining) setTimeRemaining(statusRes.data.time_remaining)
     } catch (err) {
       console.error(err)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -49,38 +54,44 @@ export default function ContestDashboard() {
     return `${h}h ${m}m ${s}s`
   }
 
-  if (!contest) return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+  if (loading) return <LoadingSkeleton variant="card" count={4} />
+
+  if (!contest) return null
 
   return (
-    <div className="min-h-screen bg-surface-900">
-      <header className="border-b border-surface-700 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">{contest.name}</h1>
-            <p className="text-sm text-gray-400">Welcome, {participantName}</p>
+    <div className="min-h-full bg-mesh-dashboard relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-primary-500/[0.03] rounded-full blur-3xl" />
+      </div>
+
+      <header className="border-b border-surface-700/60 bg-surface-900/70 backdrop-blur-xl sticky top-0 z-40 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex justify-between items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg font-bold truncate">{contest.name}</h1>
+            <p className="text-xs text-gray-400">Welcome, {participantName}</p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-xs text-gray-400">Status</p>
-              <span className={`text-sm font-medium ${contest.status === 'running' ? 'text-green-400' : 'text-yellow-400'}`}>
-                {contest.status.toUpperCase()}
-              </span>
-            </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <StatusBadge status={contest.status} />
             {timeRemaining !== null && timeRemaining > 0 && (
-              <div className="text-right">
-                <p className="text-xs text-gray-400">Time Remaining</p>
-                <p className="text-sm font-mono text-primary-400">{formatTime(timeRemaining)}</p>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary-500/10 border border-primary-500/20">
+                <svg className="w-3.5 h-3.5 text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <span className="text-sm font-mono text-primary-400 font-medium">{formatTime(timeRemaining)}</span>
               </div>
             )}
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Link to={`/contest/${contestId}/ide`} className="bg-surface-800 rounded-xl p-6 border border-surface-700 hover:border-primary-500 transition group">
-            <div className="text-3xl mb-3">💻</div>
-            <h2 className="text-lg font-semibold group-hover:text-primary-400 transition">Code Editor</h2>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 relative z-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <Link to={`/contest/${contestId}/ide`} className="group bg-surface-800/80 backdrop-blur-sm rounded-xl p-6 border border-surface-700/80 shadow-sm hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/5 transition-all duration-200">
+            <div className="w-12 h-12 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-4 group-hover:bg-primary-500/20 transition-colors">
+              <span className="text-xl font-mono text-primary-400 font-bold">&lt;/&gt;</span>
+            </div>
+            <h2 className="text-lg font-semibold group-hover:text-primary-400 transition-colors">Code Editor</h2>
             <p className="text-sm text-gray-400 mt-1">Write and test your Python solution</p>
           </Link>
 
@@ -99,29 +110,56 @@ export default function ContestDashboard() {
                   console.error(err)
                 }
               }}
-              className="bg-surface-800 rounded-xl p-6 border border-surface-700 hover:border-primary-500 transition text-left group"
+              className="group bg-surface-800/80 backdrop-blur-sm rounded-xl p-6 border border-surface-700/80 shadow-sm hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/5 transition-all duration-200 text-left"
             >
-              <div className="text-3xl mb-3">⬇️</div>
-              <h2 className="text-lg font-semibold group-hover:text-primary-400 transition">Download Executable</h2>
+              <div className="w-12 h-12 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-4 group-hover:bg-primary-500/20 transition-colors">
+                <svg className="w-6 h-6 text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-semibold group-hover:text-primary-400 transition-colors">Download Executable</h2>
               <p className="text-sm text-gray-400 mt-1">{contest.executable_name || 'executable.exe'}</p>
             </button>
           )}
 
-          <Link to={`/contest/${contestId}/submissions`} className="bg-surface-800 rounded-xl p-6 border border-surface-700 hover:border-primary-500 transition group">
-            <div className="text-3xl mb-3">📝</div>
-            <h2 className="text-lg font-semibold group-hover:text-primary-400 transition">Submissions</h2>
+          <Link to={`/contest/${contestId}/submissions`} className="group bg-surface-800/80 backdrop-blur-sm rounded-xl p-6 border border-surface-700/80 shadow-sm hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/5 transition-all duration-200">
+            <div className="w-12 h-12 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-4 group-hover:bg-primary-500/20 transition-colors">
+              <svg className="w-6 h-6 text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-semibold group-hover:text-primary-400 transition-colors">Submissions</h2>
             <p className="text-sm text-gray-400 mt-1">View your submission history</p>
           </Link>
 
-          <Link to={`/contest/${contestId}/leaderboard`} className="bg-surface-800 rounded-xl p-6 border border-surface-700 hover:border-primary-500 transition group">
-            <div className="text-3xl mb-3">🏆</div>
-            <h2 className="text-lg font-semibold group-hover:text-primary-400 transition">Leaderboard</h2>
+          <Link to={`/contest/${contestId}/leaderboard`} className="group bg-surface-800/80 backdrop-blur-sm rounded-xl p-6 border border-surface-700/80 shadow-sm hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/5 transition-all duration-200">
+            <div className="w-12 h-12 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-4 group-hover:bg-primary-500/20 transition-colors">
+              <svg className="w-6 h-6 text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 9H4.5a2.5 2.5 0 010-5C7 4 7 7 7 7" />
+                <path d="M18 9h1.5a2.5 2.5 0 000-5C17 4 17 7 17 7" />
+                <path d="M4 22h16" />
+                <path d="M10 22V2h4v20" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-semibold group-hover:text-primary-400 transition-colors">Leaderboard</h2>
             <p className="text-sm text-gray-400 mt-1">See where you rank among participants</p>
           </Link>
 
           {problem && (
-            <div className="bg-surface-800 rounded-xl p-6 border border-surface-700 md:col-span-1">
-              <div className="text-3xl mb-3">📄</div>
+            <div className="bg-surface-800/80 backdrop-blur-sm rounded-xl p-6 border border-surface-700/80 shadow-sm lg:col-span-1">
+              <div className="w-12 h-12 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+              </div>
               <h2 className="text-lg font-semibold">Problem Details</h2>
               <p className="text-sm text-gray-400 mt-1">{problem.title}</p>
               {problem.executable_name && (

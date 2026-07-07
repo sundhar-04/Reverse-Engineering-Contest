@@ -41,3 +41,67 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #6b6399;
 }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  33% { transform: translateY(-10px) rotate(1deg); }
+  66% { transform: translateY(5px) rotate(-1deg); }
+}
+
+.animate-float {
+  animation: float 8s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 10s ease-in-out 2s infinite;
+}
+
+.bg-grid {
+  background-image:
+    radial-gradient(circle, rgba(139, 92, 246, 0.06) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.bg-grid-lg {
+  background-image:
+    radial-gradient(circle, rgba(139, 92, 246, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.bg-mesh-hero {
+  background-color: #1a1528;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 0% -10%, rgba(120, 80, 240, 0.25), transparent),
+    radial-gradient(ellipse 50% 60% at 100% 0%, rgba(80, 100, 255, 0.18), transparent),
+    radial-gradient(ellipse 40% 40% at 70% 80%, rgba(160, 60, 255, 0.12), transparent),
+    radial-gradient(ellipse 30% 30% at 30% 60%, rgba(60, 80, 230, 0.08), transparent),
+    radial-gradient(ellipse 60% 20% at 50% 100%, rgba(100, 50, 220, 0.10), transparent);
+}
+
+.bg-mesh-dashboard {
+  background-color: #1e1b2e;
+  background-image:
+    radial-gradient(ellipse 50% 30% at 20% 0%, rgba(120, 80, 240, 0.12), transparent),
+    radial-gradient(ellipse 40% 30% at 80% 100%, rgba(80, 100, 255, 0.08), transparent),
+    radial-gradient(ellipse 30% 25% at 50% 50%, rgba(160, 60, 255, 0.05), transparent);
+}
+
+@keyframes aurora {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.bg-mesh-hero-animated {
+  background-size: 200% 200%;
+  animation: aurora 15s ease infinite;
+}
