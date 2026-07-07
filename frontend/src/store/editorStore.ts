@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 interface EditorState {
   code: string
@@ -34,20 +35,28 @@ if __name__ == "__main__":
     solve()
 `
 
-export const useEditorStore = create<EditorState>((set) => ({
-  code: DEFAULT_CODE,
-  input: '',
-  output: '',
-  stderr: '',
-  runtime: null,
-  status: null,
-  isRunning: false,
-  isSubmitting: false,
-  setCode: (code) => set({ code }),
-  setInput: (input) => set({ input }),
-  setOutput: (output, stderr, runtime, status) => set({ output, stderr, runtime, status }),
-  setRunning: (v) => set({ isRunning: v }),
-  setSubmitting: (v) => set({ isSubmitting: v }),
-  clearOutput: () => set({ output: '', stderr: '', runtime: null, status: null }),
-  resetCode: () => set({ code: DEFAULT_CODE }),
-}))
+export const useEditorStore = create<EditorState>()(
+  persist(
+    (set) => ({
+      code: DEFAULT_CODE,
+      input: '',
+      output: '',
+      stderr: '',
+      runtime: null,
+      status: null,
+      isRunning: false,
+      isSubmitting: false,
+      setCode: (code) => set({ code }),
+      setInput: (input) => set({ input }),
+      setOutput: (output, stderr, runtime, status) => set({ output, stderr, runtime, status }),
+      setRunning: (v) => set({ isRunning: v }),
+      setSubmitting: (v) => set({ isSubmitting: v }),
+      clearOutput: () => set({ output: '', stderr: '', runtime: null, status: null }),
+      resetCode: () => set({ code: DEFAULT_CODE }),
+    }),
+    {
+      name: 'editor-storage',
+      partialize: (state) => ({ code: state.code, input: state.input }),
+    }
+  )
+)
