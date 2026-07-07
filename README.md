@@ -33,7 +33,7 @@ docker-compose up --build -d
 | Backend    | `http://localhost:8000/docs` (Swagger)    |
 | MongoDB    | `mongodb://localhost:27017`               |
 
-**Default admin credentials:** `admin` / `admin123`
+**Default admin credentials:** `admin` / `weguysfromcodingninjas`
 
 ## Tech Stack
 

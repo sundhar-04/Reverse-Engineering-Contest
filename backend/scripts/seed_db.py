@@ -18,12 +18,12 @@ async def seed():
         await db.admins.insert_one({
             "username": "admin",
             "email": "admin@reversecode.com",
-            "password_hash": get_password_hash("admin123"),
+            "password_hash": get_password_hash("weguysfromcodingninjas"),
             "role": "admin",
             "is_active": True,
             "created_at": datetime.datetime.utcnow()
         })
-        print("Admin user created: admin / admin123")
+        print("Admin user created: admin / weguysfromcodingninjas")
     else:
         print("Admin user already exists")
     
