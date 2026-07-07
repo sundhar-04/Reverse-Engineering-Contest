@@ -32,7 +32,12 @@ async def create_testcase(
     
     return TestCaseResponse(
         id=str(testcase_doc["_id"]),
-        **{k: v for k, v in testcase_doc.items() if k != "_id"}
+        input_data=testcase_doc["input_data"],
+        expected_output=testcase_doc["expected_output"],
+        test_order=testcase_doc["test_order"],
+        is_sample=testcase_doc["is_sample"],
+        problem_id=str(testcase_doc["problem_id"]),
+        created_at=testcase_doc["created_at"]
     )
 
 

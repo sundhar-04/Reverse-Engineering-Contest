@@ -30,7 +30,7 @@ class ConnectionManager:
         for ws in self.contest_rooms[contest_id]:
             try:
                 await ws.send_json(message)
-            except:
+            except Exception:
                 dead_sockets.add(ws)
         for ws in dead_sockets:
             self.disconnect(ws)
@@ -38,7 +38,7 @@ class ConnectionManager:
     async def send_personal(self, websocket: WebSocket, message: dict):
         try:
             await websocket.send_json(message)
-        except:
+        except Exception:
             self.disconnect(websocket)
 
 

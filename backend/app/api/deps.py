@@ -7,7 +7,7 @@ from app.core.config import get_settings
 from app.core.database import get_database
 from app.core.security import decode_access_token
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/admin/login")
 
 
 async def get_current_admin(

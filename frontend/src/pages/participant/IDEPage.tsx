@@ -4,18 +4,8 @@ import Editor from '@monaco-editor/react'
 import { useEditorStore } from '../../store/editorStore'
 import { executeAPI, problemAPI } from '../../services/api'
 import type { RunCodeResponse, SubmitCodeResponse } from '../../types/api'
+import { VERDICT_COLORS } from '../../utils/verdicts'
 import toast from 'react-hot-toast'
-
-const VERDICT_COLORS: Record<string, string> = {
-  accepted: 'text-green-400',
-  wrong_answer: 'text-red-400',
-  runtime_error: 'text-yellow-400',
-  time_limit_exceeded: 'text-orange-400',
-  memory_limit_exceeded: 'text-orange-400',
-  compile_error: 'text-yellow-400',
-  pending: 'text-gray-400',
-  running: 'text-blue-400',
-}
 
 export default function IDEPage() {
   const { contestId } = useParams<{ contestId: string }>()
@@ -33,20 +23,21 @@ export default function IDEPage() {
   const participantId = localStorage.getItem('participant_id') || ''
   const participantName = localStorage.getItem('participant_name') || ''
   const rollNumber = localStorage.getItem('roll_number') || ''
-  const problemId = localStorage.getItem('problem_id') || ''
 
   const getProblemId = useCallback(async () => {
-    if (problemId) return problemId
+    const key = `problem_id_${contestId}`
+    const cached = localStorage.getItem(key)
+    if (cached) return cached
     try {
       const res = await problemAPI.list(contestId!)
       const pid = res.data[0]?.id
       if (pid) {
-        localStorage.setItem('problem_id', pid)
+        localStorage.setItem(key, pid)
         return pid
       }
     } catch {}
     return ''
-  }, [contestId, problemId])
+  }, [contestId])
 
   const handleRun = async () => {
     if (!code.trim()) { toast.error('No code to run'); return }

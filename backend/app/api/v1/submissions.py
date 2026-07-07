@@ -179,8 +179,12 @@ async def list_submissions(
     return [
         SubmissionResponse(
             id=str(s["_id"]),
+            participant_id=str(s["participant_id"]),
+            problem_id=str(s["problem_id"]),
+            contest_id=str(s["contest_id"]),
             code=s["code"],
             language=s["language"],
+            is_custom_run=s.get("is_custom_run", False),
             custom_input=s.get("custom_input", ""),
             custom_output=s.get("custom_output"),
             custom_error=s.get("custom_error"),
@@ -211,8 +215,12 @@ async def get_submission(
     
     return SubmissionResponse(
         id=str(submission["_id"]),
+        participant_id=str(submission["participant_id"]),
+        problem_id=str(submission["problem_id"]),
+        contest_id=str(submission["contest_id"]),
         code=submission["code"],
         language=submission["language"],
+        is_custom_run=submission.get("is_custom_run", False),
         custom_input=submission.get("custom_input", ""),
         custom_output=submission.get("custom_output"),
         custom_error=submission.get("custom_error"),
@@ -245,8 +253,8 @@ async def get_leaderboard(contest_id: str, db: AsyncIOMotorDatabase):
             "department": entry["department"],
             "is_accepted": entry["is_accepted"],
             "attempts": entry["attempts"],
-            "last_submission_time": entry["last_submission_time"],
-            "accepted_at": entry.get("accepted_at")
+            "last_submission_time": entry["last_submission_time"].isoformat() if entry.get("last_submission_time") else None,
+            "accepted_at": entry["accepted_at"].isoformat() if entry.get("accepted_at") else None
         }
         for entry in leaderboard
     ]

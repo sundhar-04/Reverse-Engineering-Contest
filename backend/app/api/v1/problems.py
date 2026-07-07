@@ -31,7 +31,15 @@ async def create_problem(
     
     return ProblemResponse(
         id=str(problem_doc["_id"]),
-        **{k: v for k, v in problem_doc.items() if k != "_id"}
+        title=problem_doc["title"],
+        description=problem_doc["description"],
+        time_limit=problem_doc["time_limit"],
+        memory_limit=problem_doc["memory_limit"],
+        contest_id=str(problem_doc["contest_id"]),
+        executable_name=problem_doc.get("executable_name"),
+        is_active=problem_doc["is_active"],
+        created_at=problem_doc["created_at"],
+        updated_at=problem_doc["updated_at"]
     )
 
 

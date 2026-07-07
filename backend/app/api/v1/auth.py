@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Optional
 from pydantic import BaseModel
 from app.api.deps import get_database, get_current_active_admin
@@ -31,12 +31,14 @@ async def register_admin(
         raise HTTPException(status_code=400, detail="Username already exists")
     
     hashed_password = get_password_hash(admin_data.password)
+    now = datetime.utcnow()
     admin_doc = {
         "username": admin_data.username,
         "email": admin_data.email,
         "password_hash": hashed_password,
         "role": admin_data.role,
-        "is_active": True
+        "is_active": True,
+        "created_at": now
     }
     result = await db.admins.insert_one(admin_doc)
     admin_doc["_id"] = result.inserted_id
@@ -46,7 +48,7 @@ async def register_admin(
         username=admin_doc["username"],
         email=admin_doc["email"],
         role=admin_doc["role"],
-        created_at=admin_doc.get("created_at"),
+        created_at=admin_doc["created_at"],
         is_active=admin_doc["is_active"]
     )
 

@@ -153,8 +153,14 @@ async def delete_contest(
         raise HTTPException(status_code=404, detail="Contest not found")
     
     # Clean up related data
+    problem_ids = await db.problems.find(
+        {"contest_id": ObjectId(contest_id)},
+        {"_id": 1}
+    ).to_list(None)
+    problem_ids = [p["_id"] for p in problem_ids]
     await db.problems.delete_many({"contest_id": ObjectId(contest_id)})
-    await db.hidden_testcases.delete_many({"problem_id": {"$in": [ObjectId(contest_id)]}})
+    if problem_ids:
+        await db.hidden_testcases.delete_many({"problem_id": {"$in": problem_ids}})
     await db.participants.delete_many({"contest_id": ObjectId(contest_id)})
     await db.submissions.delete_many({"contest_id": ObjectId(contest_id)})
     await db.leaderboard.delete_many({"contest_id": ObjectId(contest_id)})
@@ -322,8 +328,9 @@ async def list_participants(
             "name": p["name"],
             "roll_number": p["roll_number"],
             "department": p["department"],
-            "joined_at": p["joined_at"],
-            "is_active": p["is_active"]
+            "contest_id": str(p["contest_id"]),
+            "joined_at": p["joined_at"].isoformat(),
+            "is_active": p.get("is_active", True)
         }
         for p in participants
     ]
@@ -350,11 +357,12 @@ async def list_submissions(
     return [
         {
             "id": str(s["_id"]),
+            "participant_id": str(s["participant_id"]),
             "participant_name": participant_map.get(str(s["participant_id"]), {}).get("name", "Unknown"),
             "roll_number": participant_map.get(str(s["participant_id"]), {}).get("roll_number", "Unknown"),
             "verdict": s["verdict"],
-            "passed_test_cases": s["passed_test_cases"],
-            "total_test_cases": s["total_test_cases"],
+            "passed_test_cases": s.get("passed_test_cases", 0),
+            "total_test_cases": s.get("total_test_cases", 0),
             "execution_time": s.get("execution_time"),
             "submitted_at": s["submitted_at"]
         }

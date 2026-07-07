@@ -1,18 +1,32 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from bson import ObjectId
+from app.api.deps import get_database
 from app.services.execution_service import execute_code
+from app.models.submission import RunCodeRequest, RunCodeResponse
 
 router = APIRouter()
 
 
-@router.post("/run")
-async def run_code(request: dict):
-    code = request.get("code", "")
-    input_data = request.get("input", "")
-    time_limit = request.get("time_limit", 2)
-    memory_limit = request.get("memory_limit", 256)
+@router.post("/run", response_model=RunCodeResponse)
+async def run_code(
+    request: RunCodeRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    participant = await db.participants.find_one({"_id": ObjectId(request.participant_id)})
+    if not participant:
+        raise HTTPException(status_code=404, detail="Participant not found")
     
-    if not code.strip():
-        raise HTTPException(status_code=400, detail="Code is required")
+    problem = await db.problems.find_one({"_id": ObjectId(request.problem_id)})
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
     
-    result = await execute_code(code, input_data, time_limit, memory_limit)
-    return result
+    result = await execute_code(request.code, request.input, request.time_limit, request.memory_limit)
+    
+    return RunCodeResponse(
+        stdout=result.get("stdout", ""),
+        stderr=result.get("stderr", ""),
+        runtime_ms=result.get("runtime_ms", 0),
+        memory_mb=result.get("memory_mb", 0.0),
+        status=result.get("status", "error")
+    )

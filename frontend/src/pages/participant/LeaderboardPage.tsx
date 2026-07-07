@@ -8,37 +8,50 @@ export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(true)
   const wsRef = useRef<WebSocket | null>(null)
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mountedRef = useRef(true)
 
   useEffect(() => {
+    mountedRef.current = true
     loadLeaderboard()
     connectWebSocket()
-    return () => { wsRef.current?.close() }
+    return () => {
+      mountedRef.current = false
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
+      wsRef.current?.close()
+      wsRef.current = null
+    }
   }, [contestId])
 
   const loadLeaderboard = async () => {
     try {
       const res = await leaderboardAPI.get(contestId!)
-      setEntries(res.data.entries || [])
+      if (mountedRef.current) setEntries(res.data.entries || [])
     } catch (err) {
       console.error(err)
     } finally {
-      setLoading(false)
+      if (mountedRef.current) setLoading(false)
     }
   }
 
   const connectWebSocket = () => {
+    if (!mountedRef.current) return
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = import.meta.env.DEV ? 'localhost:8000' : window.location.host
     const ws = new WebSocket(`${protocol}//${host}/ws/contests/${contestId}/leaderboard`)
     ws.onmessage = (event) => {
+      if (!mountedRef.current) return
       const msg = JSON.parse(event.data)
       if (msg.type === 'leaderboard_init' || msg.type === 'leaderboard_update') {
         setEntries(msg.data)
       }
     }
     ws.onclose = () => {
-      setTimeout(connectWebSocket, 3000)
+      if (mountedRef.current) {
+        reconnectTimerRef.current = setTimeout(connectWebSocket, 3000)
+      }
     }
+    ws.onerror = () => { ws.close() }
     wsRef.current = ws
   }
 
