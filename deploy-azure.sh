@@ -10,7 +10,7 @@ set -euo pipefail
 RESOURCE_GROUP="ReverseCodeRG"
 VM_NAME="ReverseCodeVM"
 VM_SIZE="Standard_B2s"             # 2 vCPU, 4GB — ~$30/mo
-LOCATION="eastus"                  # change to your nearest region
+LOCATION="westus2"                 # Azure for Students: use westus2/westus3/centralus/westeurope
 ADMIN_USER="azureuser"
 FRONTEND_PORT=3000
 BACKEND_PORT=8000
@@ -68,11 +68,14 @@ info "VM created! Public IP: $VM_IP"
 
 # ---------- Open Ports ----------
 step "4/8" "Open Ports"
-az vm open-port \
-    --resource-group "$RESOURCE_GROUP" \
-    --name "$VM_NAME" \
-    --port "$FRONTEND_PORT" "$BACKEND_PORT" 22 \
-    -o table
+for PORT in $FRONTEND_PORT $BACKEND_PORT 22; do
+    az vm open-port \
+        --resource-group "$RESOURCE_GROUP" \
+        --name "$VM_NAME" \
+        --port "$PORT" \
+        --priority "$((PORT + 1000))" \
+        -o table
+done
 info "Ports $FRONTEND_PORT (frontend), $BACKEND_PORT (backend), 22 (SSH) opened"
 
 # ---------- Install Docker on VM ----------
