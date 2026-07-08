@@ -1,39 +1,31 @@
---- STEP 1: Clean up old failed resource group ---
+--- FIND A REGION YOUR SUBSCRIPTION ALLOWS ---
+# The "best available regions" policy blocks most. Test one at a time:
+az group create -n testreg -l eastus --query properties.provisioningState
+az group delete -n testreg --yes
+
+# If eastus fails, try each below (replace eastus each time):
+#   westus  westeurope  northeurope  southeastasia
+#   uksouth  australiaeast  centralus  eastus2
+#   southcentralus  westcentralus  francecentral
+#   switzerlandnorth  swedencentral  norwayeast
+#   germanywestcentral  canadacentral  brazilsouth
+#   japaneast  koreacentral  southafricanorth
+#   uaenorth  india  centralindia
+
+# Once az group create succeeds (returns "Succeeded"), note the region.
+
+
+
+--- DEPLOY (replace WORKING_REGION with the one that worked) ---
 az group delete -n ReverseCodeRG --yes
-
-(wait for it to finish - ~30 seconds)
-
-
-
---- STEP 2: Deploy everything ---
-curl -sL https://raw.githubusercontent.com/sundhar-04/Reverse-Engineering-Contest/main/deploy-azure.sh | bash
-
-(wait ~3 minutes for VM + Docker + app)
+curl -sL https://raw.githubusercontent.com/sundhar-04/Reverse-Engineering-Contest/main/deploy-azure.sh | bash -s -- indiasouthcentral
 
 
 
-
---- IF STEP 2 FAILS WITH REGION ERROR ---
-Try with a different region instead:
-  centralus
-  westeurope
-  northeurope
-  southeastasia
-  westus3
-
-Example:
-curl -sL https://raw.githubusercontent.com/sundhar-04/Reverse-Engineering-Contest/main/deploy-azure.sh | bash -s -- westeurope
-
-Or check available regions first:
-  az vm list-skus --size Standard_B2s --all --output table
-
-
-
---- AFTER DEPLOYMENT SUCCEEDS ----
-It will print a public IP like: 20.85.123.45
-
-Frontend:  http://20.85.123.45:3000
-Admin:     http://20.85.123.45:3000/login   (admin / weguysfromcodingninjas)
+--- ACCESS THE APP ---
+It prints: http://<IP>:3000
+Login: http://<IP>:3000/login
+User: admin / weguysfromcodingninjas
 
 
 
