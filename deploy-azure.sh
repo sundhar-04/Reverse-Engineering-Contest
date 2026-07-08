@@ -44,11 +44,7 @@ step "2/8" "Create Resource Group"
 # Delete if it exists from a previous failed attempt (wrong region)
 if az group show --name "$RESOURCE_GROUP" &>/dev/null; then
     info "Removing old resource group (was in wrong region)..."
-    az group delete --name "$RESOURCE_GROUP" --yes --no-wait 2>/dev/null || true
-    # Wait for deletion to complete
-    while az group show --name "$RESOURCE_GROUP" &>/dev/null; do
-        sleep 5
-    done
+    az group delete --name "$RESOURCE_GROUP" --yes 2>/dev/null || true
 fi
 az group create --name "$RESOURCE_GROUP" --location "$LOCATION" -o table
 info "Resource group '$RESOURCE_GROUP' created in '$LOCATION'"
