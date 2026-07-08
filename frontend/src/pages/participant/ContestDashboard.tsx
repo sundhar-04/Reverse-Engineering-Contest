@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { contestAPI, problemAPI } from '../../services/api'
-import type { Contest, Problem } from '../../types/api'
+import { contestAPI, problemAPI, submissionAPI } from '../../services/api'
+import type { Contest, Problem, Submission } from '../../types/api'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import StatusBadge from '../../components/StatusBadge'
 
@@ -9,7 +9,8 @@ export default function ContestDashboard() {
   const { contestId } = useParams<{ contestId: string }>()
   const navigate = useNavigate()
   const [contest, setContest] = useState<Contest | null>(null)
-  const [problem, setProblem] = useState<Problem | null>(null)
+  const [problems, setProblems] = useState<Problem[]>([])
+  const [submissions, setSubmissions] = useState<Submission[]>([])
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const participantName = localStorage.getItem('participant_name')
@@ -36,15 +37,27 @@ export default function ContestDashboard() {
         problemAPI.list(contestId!),
       ])
       setContest(contestRes.data)
-      if (problemRes.data.length > 0) setProblem(problemRes.data[0])
+      setProblems(problemRes.data)
 
       const statusRes = await contestAPI.status(contestId!)
       if (statusRes.data.time_remaining) setTimeRemaining(statusRes.data.time_remaining)
+
+      if (participantId) {
+        const subRes = await submissionAPI.listByParticipant(participantId)
+        setSubmissions(subRes.data)
+      }
     } catch (err) {
       console.error(err)
     } finally {
       setLoading(false)
     }
+  }
+
+  const getProblemStatus = (problemId: string): 'solved' | 'failed' | 'untouched' => {
+    const problemSubs = submissions.filter((s) => s.problem_id === problemId)
+    if (problemSubs.some((s) => s.verdict === 'accepted')) return 'solved'
+    if (problemSubs.length > 0) return 'failed'
+    return 'untouched'
   }
 
   const formatTime = (seconds: number) => {
@@ -87,23 +100,54 @@ export default function ContestDashboard() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 relative z-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          <Link to={`/contest/${contestId}/ide`} className="group bg-surface-800/80 backdrop-blur-sm rounded-xl p-6 border border-surface-700/80 shadow-sm hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/5 transition-all duration-200">
-            <div className="w-12 h-12 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-4 group-hover:bg-primary-500/20 transition-colors">
-              <span className="text-xl font-mono text-primary-400 font-bold">&lt;/&gt;</span>
-            </div>
-            <h2 className="text-lg font-semibold group-hover:text-primary-400 transition-colors">Code Editor</h2>
-            <p className="text-sm text-gray-400 mt-1">Write and test your Python solution</p>
-          </Link>
 
-          {contest.executable_url && (
+          {/* Problem Cards */}
+          {problems.map((p) => {
+            const status = getProblemStatus(p.id)
+            const statusColors = {
+              solved: 'border-green-500/40 hover:border-green-500',
+              failed: 'border-red-500/30 hover:border-red-500',
+              untouched: 'border-surface-700/80 hover:border-primary-500/50',
+            }
+            const statusBadge = {
+              solved: { text: 'Solved', class: 'bg-green-500/15 text-green-400' },
+              failed: { text: 'Attempted', class: 'bg-red-500/15 text-red-400' },
+              untouched: { text: `${p.score} pts`, class: 'bg-surface-700/50 text-gray-400' },
+            }
+            return (
+              <Link
+                key={p.id}
+                to={`/contest/${contestId}/ide?problemId=${p.id}`}
+                className={`group bg-surface-800/80 backdrop-blur-sm rounded-xl p-6 border shadow-sm hover:shadow-lg hover:shadow-primary-500/5 transition-all duration-200 ${statusColors[status]}`}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-12 h-12 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center group-hover:bg-primary-500/20 transition-colors">
+                    <span className="text-xl font-mono text-primary-400 font-bold">&lt;/&gt;</span>
+                  </div>
+                  <span className={`inline-block text-xs font-medium px-2.5 py-0.5 rounded-full ${statusBadge[status].class}`}>
+                    {statusBadge[status].text}
+                  </span>
+                </div>
+                <h2 className="text-lg font-semibold group-hover:text-primary-400 transition-colors">{p.title}</h2>
+                <p className="text-sm text-gray-400 mt-1 line-clamp-2">{p.description || 'No description'}</p>
+                {p.executable_name && (
+                  <p className="text-xs text-gray-500 mt-2">Executable: {p.executable_name}</p>
+                )}
+              </Link>
+            )
+          })}
+
+          {/* Download Executable per problem */}
+          {problems.filter((p) => p.executable_name).map((p) => (
             <button
+              key={`dl-${p.id}`}
               onClick={async () => {
                 try {
-                  const res = await contestAPI.downloadExecutable(contestId!)
+                  const res = await problemAPI.downloadExecutable(p.id)
                   const url = URL.createObjectURL(new Blob([res.data]))
                   const a = document.createElement('a')
                   a.href = url
-                  a.download = contest.executable_name || 'executable.exe'
+                  a.download = p.executable_name || 'executable.exe'
                   a.click()
                   URL.revokeObjectURL(url)
                 } catch (err) {
@@ -119,11 +163,12 @@ export default function ContestDashboard() {
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
               </div>
-              <h2 className="text-lg font-semibold group-hover:text-primary-400 transition-colors">Download Executable</h2>
-              <p className="text-sm text-gray-400 mt-1">{contest.executable_name || 'executable.exe'}</p>
+              <h2 className="text-lg font-semibold group-hover:text-primary-400 transition-colors">Download: {p.title}</h2>
+              <p className="text-sm text-gray-400 mt-1">{p.executable_name}</p>
             </button>
-          )}
+          ))}
 
+          {/* Submissions */}
           <Link to={`/contest/${contestId}/submissions`} className="group bg-surface-800/80 backdrop-blur-sm rounded-xl p-6 border border-surface-700/80 shadow-sm hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/5 transition-all duration-200">
             <div className="w-12 h-12 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-4 group-hover:bg-primary-500/20 transition-colors">
               <svg className="w-6 h-6 text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -137,6 +182,7 @@ export default function ContestDashboard() {
             <p className="text-sm text-gray-400 mt-1">View your submission history</p>
           </Link>
 
+          {/* Leaderboard */}
           <Link to={`/contest/${contestId}/leaderboard`} className="group bg-surface-800/80 backdrop-blur-sm rounded-xl p-6 border border-surface-700/80 shadow-sm hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/5 transition-all duration-200">
             <div className="w-12 h-12 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-4 group-hover:bg-primary-500/20 transition-colors">
               <svg className="w-6 h-6 text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -149,24 +195,6 @@ export default function ContestDashboard() {
             <h2 className="text-lg font-semibold group-hover:text-primary-400 transition-colors">Leaderboard</h2>
             <p className="text-sm text-gray-400 mt-1">See where you rank among participants</p>
           </Link>
-
-          {problem && (
-            <div className="bg-surface-800/80 backdrop-blur-sm rounded-xl p-6 border border-surface-700/80 shadow-sm lg:col-span-1">
-              <div className="w-12 h-12 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                </svg>
-              </div>
-              <h2 className="text-lg font-semibold">Problem Details</h2>
-              <p className="text-sm text-gray-400 mt-1">{problem.title}</p>
-              {problem.executable_name && (
-                <p className="text-xs text-gray-500 mt-1">Executable: {problem.executable_name}</p>
-              )}
-            </div>
-          )}
         </div>
       </main>
     </div>

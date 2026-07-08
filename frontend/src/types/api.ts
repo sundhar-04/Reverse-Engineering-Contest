@@ -11,8 +11,6 @@ export interface Contest {
     memory_limit: number
   }
   status: 'draft' | 'running' | 'ended' | 'archived'
-  executable_url: string | null
-  executable_name: string | null
   created_by: string
   created_at: string
   updated_at: string
@@ -42,9 +40,11 @@ export interface Problem {
   contest_id: string
   title: string
   description: string
+  score: number
   time_limit: number
   memory_limit: number
   executable_name: string | null
+  executable_url: string | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -52,6 +52,9 @@ export interface Problem {
 
 export interface Submission {
   id: string
+  participant_id: string
+  problem_id: string
+  contest_id: string
   code: string
   language: string
   custom_input: string
@@ -82,10 +85,12 @@ export interface LeaderboardEntry {
   name: string
   roll_number: string
   department: string
-  is_accepted: boolean
+  total_score: number
+  max_score: number
+  solved_count: number
+  total_problems: number
   attempts: number
   last_submission_time: string | null
-  accepted_at: string | null
 }
 
 export interface RunCodeResponse {

@@ -60,18 +60,20 @@ export default function AdminSubmissions() {
           />
         ) : (
           <div className="bg-surface-800 rounded-xl border border-surface-700 shadow-sm overflow-hidden">
-            <div className="grid grid-cols-6 gap-4 px-6 py-3 bg-surface-700/50 text-sm font-medium text-gray-400">
+            <div className="grid grid-cols-7 gap-4 px-6 py-3 bg-surface-700/50 text-sm font-medium text-gray-400">
               <div>Name</div>
               <div>Roll No</div>
+              <div>Problem</div>
               <div>Verdict</div>
               <div>Tests</div>
               <div>Runtime</div>
               <div>Submitted</div>
             </div>
             {filtered.map((s) => (
-              <div key={s.id} className="grid grid-cols-6 gap-4 px-6 py-3 border-t border-surface-700 text-sm">
+              <div key={s.id} className="grid grid-cols-7 gap-4 px-6 py-3 border-t border-surface-700 text-sm">
                 <div className="font-medium truncate">{s.participant_name}</div>
                 <div className="text-gray-400">{s.roll_number}</div>
+                <div className="text-xs text-primary-400 truncate">{s.problem_title || 'Unknown'}</div>
                 <div>
                   <span className={`inline-block text-xs font-medium px-2.5 py-0.5 rounded-full border ${VERDICT_STYLES[s.verdict] || ''}`}>
                     {s.verdict.replace(/_/g, ' ').toUpperCase()}

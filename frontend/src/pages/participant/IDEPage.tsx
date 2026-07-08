@@ -1,9 +1,9 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
 import Editor from '@monaco-editor/react'
 import { useEditorStore } from '../../store/editorStore'
 import { executeAPI, problemAPI } from '../../services/api'
-import type { RunCodeResponse, SubmitCodeResponse } from '../../types/api'
+import type { RunCodeResponse, SubmitCodeResponse, Problem } from '../../types/api'
 import { VERDICT_COLORS } from '../../utils/verdicts'
 import toast from 'react-hot-toast'
 
@@ -44,12 +44,18 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
 
 export default function IDEPage() {
   const { contestId } = useParams<{ contestId: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
   const editorRef = useRef<any>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
   const [editorHeight, setEditorHeight] = useState(60)
   const [activeTab, setActiveTab] = useState<'output' | 'input' | 'result'>('output')
   const [submitResult, setSubmitResult] = useState<SubmitCodeResponse | null>(null)
+  const [problems, setProblems] = useState<Problem[]>([])
+  const [currentProblem, setCurrentProblem] = useState<Problem | null>(null)
+  const [problemsLoading, setProblemsLoading] = useState(true)
+
+  const problemIdFromUrl = searchParams.get('problemId') || ''
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -82,7 +88,8 @@ export default function IDEPage() {
   }
 
   const {
-    code, setCode, input, setInput, output, stderr, runtime, status,
+    codes, inputs, setCurrentProblem: storeSetProblem,
+    setCode, setInput, output, stderr, runtime, status,
     isRunning, isSubmitting, setRunning, setSubmitting,
     setOutput, clearOutput, resetCode,
   } = useEditorStore()
@@ -91,32 +98,56 @@ export default function IDEPage() {
   const participantName = localStorage.getItem('participant_name') || ''
   const rollNumber = localStorage.getItem('roll_number') || ''
 
-  const getProblemId = useCallback(async () => {
-    const key = `problem_id_${contestId}`
-    const cached = localStorage.getItem(key)
-    if (cached) return cached
-    try {
-      const res = await problemAPI.list(contestId!)
-      const pid = res.data[0]?.id
-      if (pid) {
-        localStorage.setItem(key, pid)
-        return pid
+  // Load problems list
+  useEffect(() => {
+    const loadProblems = async () => {
+      try {
+        const res = await problemAPI.list(contestId!)
+        setProblems(res.data)
+        setProblemsLoading(false)
+      } catch {
+        setProblemsLoading(false)
       }
-    } catch {}
-    return ''
+    }
+    loadProblems()
   }, [contestId])
 
+  // Set current problem from URL
+  useEffect(() => {
+    if (problems.length === 0) return
+    const pid = problemIdFromUrl || problems[0].id
+    const found = problems.find((p) => p.id === pid) || problems[0]
+    setCurrentProblem(found)
+    storeSetProblem(found.id)
+    if (!searchParams.get('problemId')) {
+      setSearchParams({ problemId: found.id }, { replace: true })
+    }
+  }, [problems, problemIdFromUrl])
+
+  const handleProblemChange = (problemId: string) => {
+    setSearchParams({ problemId }, { replace: true })
+    const found = problems.find((p) => p.id === problemId)
+    if (found) {
+      setCurrentProblem(found)
+      storeSetProblem(found.id)
+    }
+    clearOutput()
+    setSubmitResult(null)
+    setActiveTab('output')
+  }
+
   const handleRun = async () => {
+    const code = currentProblem ? (codes[currentProblem.id] || '') : ''
     if (!code.trim()) { toast.error('No code to run'); return }
     setRunning(true)
     clearOutput()
     setActiveTab('output')
 
     try {
-      const pid = await getProblemId()
+      const pid = currentProblem?.id || problemIdFromUrl
       const res = await executeAPI.run({
         code,
-        input,
+        input: currentProblem ? (inputs[currentProblem.id] || '') : '',
         participant_id: participantId,
         problem_id: pid,
       })
@@ -131,13 +162,14 @@ export default function IDEPage() {
   }
 
   const handleSubmit = async () => {
+    const code = currentProblem ? (codes[currentProblem.id] || '') : ''
     if (!code.trim()) { toast.error('No code to submit'); return }
     setSubmitting(true)
     clearOutput()
     setSubmitResult(null)
 
     try {
-      const pid = await getProblemId()
+      const pid = currentProblem?.id || problemIdFromUrl
       const res = await executeAPI.submit({
         code,
         participant_id: participantId,
@@ -170,6 +202,9 @@ export default function IDEPage() {
     }
   }
 
+  const editorValue = currentProblem ? (codes[currentProblem.id] || '') : ''
+  const editorInput = currentProblem ? (inputs[currentProblem.id] || '') : ''
+
   return (
     <div className="h-screen flex flex-col bg-surface-900" onKeyDown={handleKeyDown}>
       <header className="border-b border-surface-700 bg-surface-900/80 backdrop-blur-sm shrink-0">
@@ -180,7 +215,25 @@ export default function IDEPage() {
             </Link>
             <div className="h-4 w-px bg-surface-600 shrink-0" />
             <span className="text-xs font-mono text-primary-400 font-bold shrink-0">&lt;/&gt;</span>
-            <span className="text-sm font-medium text-gray-300 truncate">Code Editor</span>
+
+            {!problemsLoading && problems.length > 1 && (
+              <select
+                value={currentProblem?.id || ''}
+                onChange={(e) => handleProblemChange(e.target.value)}
+                className="text-sm bg-surface-800 border border-surface-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-primary-500 transition max-w-[200px]"
+              >
+                {problems.map((p) => (
+                  <option key={p.id} value={p.id}>{p.title} ({p.score} pts)</option>
+                ))}
+              </select>
+            )}
+
+            {currentProblem && (
+              <>
+                <span className="text-sm font-medium text-gray-300 truncate">{currentProblem.title}</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-primary-500/10 text-primary-400 border border-primary-500/20">{currentProblem.score} pts</span>
+              </>
+            )}
             <div className="h-4 w-px bg-surface-600 shrink-0" />
             <span className="text-xs text-gray-500 truncate">{participantName}</span>
             <span className="text-xs text-gray-600">({rollNumber})</span>
@@ -203,8 +256,8 @@ export default function IDEPage() {
               height="100%"
               defaultLanguage="python"
               theme="vs-dark"
-              value={code}
-              onChange={(val) => setCode(val || '')}
+              value={editorValue}
+              onChange={(val) => currentProblem && setCode(currentProblem.id, val || '')}
               onMount={(editor) => { editorRef.current = editor }}
               options={{
                 fontSize: 14,
@@ -256,8 +309,8 @@ export default function IDEPage() {
             <div className="flex-1 bg-surface-800/80 overflow-auto min-h-0" tabIndex={-1}>
               {activeTab === 'input' ? (
                 <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  value={editorInput}
+                  onChange={(e) => currentProblem && setInput(currentProblem.id, e.target.value)}
                   className="w-full h-full bg-transparent resize-none focus:outline-none p-4 font-mono text-sm text-gray-200 placeholder-gray-600"
                   placeholder="Enter custom input here..."
                   spellCheck={false}
@@ -338,7 +391,7 @@ export default function IDEPage() {
             Clear Output
           </button>
           <button
-            onClick={resetCode}
+            onClick={() => currentProblem && resetCode(currentProblem.id)}
             className="px-3 py-1.5 text-xs rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-400 hover:text-gray-200 transition"
           >
             Reset Code

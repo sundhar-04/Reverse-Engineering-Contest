@@ -35,26 +35,26 @@ export default function AdminLeaderboard() {
           />
         ) : (
           <div className="bg-surface-800 rounded-xl border border-surface-700 shadow-sm overflow-hidden">
-            <div className="grid grid-cols-6 gap-4 px-6 py-3 bg-surface-700/50 text-sm font-medium text-gray-400">
+            <div className="grid grid-cols-7 gap-4 px-6 py-3 bg-surface-700/50 text-sm font-medium text-gray-400">
               <div>Rank</div>
               <div>Name</div>
               <div>Roll No</div>
-              <div>Status</div>
+              <div>Score</div>
+              <div>Solved</div>
               <div>Attempts</div>
               <div>Last Submission</div>
             </div>
             {entries.map((e) => (
-              <div key={e.id} className="grid grid-cols-6 gap-4 px-6 py-3 border-t border-surface-700 text-sm items-center">
+              <div key={e.id} className="grid grid-cols-7 gap-4 px-6 py-3 border-t border-surface-700 text-sm items-center">
                 <div><RankBadge rank={e.rank} /></div>
                 <div className="font-medium truncate">{e.name}</div>
                 <div className="text-gray-400">{e.roll_number}</div>
                 <div>
-                  {e.is_accepted ? (
-                    <span className="text-green-400 text-xs font-medium">Accepted</span>
-                  ) : (
-                    <span className="text-yellow-400 text-xs">Pending</span>
-                  )}
+                  <span className={`text-xs font-bold ${e.solved_count === e.total_problems ? 'text-green-400' : 'text-primary-400'}`}>
+                    {e.total_score}/{e.max_score}
+                  </span>
                 </div>
+                <div className="text-gray-400">{e.solved_count}/{e.total_problems}</div>
                 <div className="text-gray-400">{e.attempts}</div>
                 <div className="text-gray-500 text-xs">
                   {e.last_submission_time ? new Date(e.last_submission_time).toLocaleString() : '-'}

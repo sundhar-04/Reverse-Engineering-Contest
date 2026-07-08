@@ -11,7 +11,6 @@ export default function CreateContestPage() {
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [loading, setLoading] = useState(false)
-  const [executable, setExecutable] = useState<File | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,10 +29,6 @@ export default function CreateContestPage() {
         },
       })
       const contestId = res.data.id
-
-      if (executable) {
-        await contestAPI.uploadExecutable(contestId, executable)
-      }
 
       toast.success('Contest created successfully')
       navigate(`/admin/contests/${contestId}`)
@@ -93,15 +88,6 @@ export default function CreateContestPage() {
                 required
               />
             </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Executable (.exe)</label>
-            <input
-              type="file"
-              accept=".exe,.out,.bin"
-              onChange={(e) => setExecutable(e.target.files?.[0] || null)}
-              className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-surface-700 file:text-gray-200 hover:file:bg-surface-600 cursor-pointer"
-            />
           </div>
           <button
             type="submit"

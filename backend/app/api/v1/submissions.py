@@ -251,10 +251,12 @@ async def get_leaderboard(contest_id: str, db: AsyncIOMotorDatabase):
             "name": entry["participant_name"],
             "roll_number": entry["roll_number"],
             "department": entry["department"],
-            "is_accepted": entry["is_accepted"],
+            "total_score": entry.get("total_score", 0),
+            "max_score": entry.get("max_score", 0),
+            "solved_count": entry.get("solved_count", 0),
+            "total_problems": entry.get("total_problems", 0),
             "attempts": entry["attempts"],
-            "last_submission_time": entry["last_submission_time"].isoformat() if entry.get("last_submission_time") else None,
-            "accepted_at": entry["accepted_at"].isoformat() if entry.get("accepted_at") else None
+            "last_submission_time": entry["last_submission_time"].isoformat() if entry.get("last_submission_time") else None
         }
         for entry in leaderboard
     ]

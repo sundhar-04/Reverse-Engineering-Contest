@@ -35,8 +35,6 @@ class ContestUpdate(BaseModel):
 class ContestInDB(ContestBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     status: str = Field(default="draft", pattern="^(draft|running|ended|archived)$")
-    executable_url: Optional[str] = None
-    executable_name: Optional[str] = None
     created_by: PyObjectId
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -50,8 +48,6 @@ class ContestInDB(ContestBase):
 class ContestResponse(ContestBase):
     id: str
     status: str
-    executable_url: Optional[str]
-    executable_name: Optional[str]
     created_by: str
     created_at: datetime
     updated_at: datetime

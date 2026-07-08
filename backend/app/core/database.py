@@ -80,10 +80,11 @@ async def create_indexes():
     await db.submissions.create_index([("participant_id", 1), ("contest_id", 1)])
     await db.submissions.create_index([("contest_id", 1), ("verdict", 1)])
     await db.submissions.create_index("submitted_at")
+    await db.submissions.create_index([("contest_id", 1), ("problem_id", 1)])
     
     # Leaderboard indexes
     await db.leaderboard.create_index([("contest_id", 1), ("rank", 1)])
-    await db.leaderboard.create_index([("contest_id", 1), ("is_accepted", -1), ("attempts", 1), ("last_submission_time", 1)])
+    await db.leaderboard.create_index([("contest_id", 1), ("total_score", -1), ("solved_count", -1), ("attempts", 1)])
     
     # Admins indexes
     await db.admins.create_index("username", unique=True)

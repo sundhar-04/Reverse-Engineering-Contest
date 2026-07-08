@@ -74,12 +74,19 @@ async def admin_list_submissions(
     participants = await db.participants.find({"_id": {"$in": pids}}).to_list(1000)
     p_map = {str(p["_id"]): p for p in participants}
     
+    # Get problem info
+    prob_ids = list(set(s["problem_id"] for s in submissions))
+    problems = await db.problems.find({"_id": {"$in": prob_ids}}).to_list(1000)
+    prob_map = {str(p["_id"]): p.get("title", "Unknown") for p in problems}
+
     return [
         {
             "id": str(s["_id"]),
             "participant_id": str(s["participant_id"]),
             "participant_name": p_map.get(str(s["participant_id"]), {}).get("name", "Unknown"),
             "roll_number": p_map.get(str(s["participant_id"]), {}).get("roll_number", "Unknown"),
+            "problem_id": str(s["problem_id"]),
+            "problem_title": prob_map.get(str(s["problem_id"]), "Unknown"),
             "verdict": s["verdict"],
             "passed_test_cases": s.get("passed_test_cases", 0),
             "total_test_cases": s.get("total_test_cases", 0),
@@ -114,7 +121,6 @@ async def admin_list_all_contests(
             "status": c["status"],
             "start_time": c["start_time"].isoformat(),
             "end_time": c["end_time"].isoformat(),
-            "executable_name": c.get("executable_name"),
             "created_at": c["created_at"].isoformat(),
             "participant_count": await db.participants.count_documents({"contest_id": c["_id"]}),
             "submission_count": await db.submissions.count_documents({"contest_id": c["_id"], "is_custom_run": False})

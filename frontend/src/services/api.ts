@@ -48,15 +48,6 @@ export const contestAPI = {
   start: (id: string) => api.post(`/contests/${id}/start`),
   end: (id: string) => api.post(`/contests/${id}/end`),
   status: (id: string) => api.get(`/contests/${id}/status`),
-  uploadExecutable: (id: string, file: File) => {
-    const fd = new FormData()
-    fd.append('file', file)
-    return api.post(`/contests/${id}/executable`, fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  },
-  downloadExecutable: (id: string) =>
-    api.get(`/contests/${id}/executable/download`, { responseType: 'blob' }),
   participants: (id: string) => api.get(`/contests/${id}/participants`),
   submissions: (id: string, verdict?: string) =>
     api.get(`/contests/${id}/submissions`, { params: { verdict } }),
@@ -76,6 +67,20 @@ export const participantAPI = {
 export const problemAPI = {
   list: (contestId: string) => api.get(`/problems/contest/${contestId}`),
   get: (id: string) => api.get(`/problems/${id}`),
+  create: (data: { contest_id: string; title: string; description?: string; score?: number; time_limit?: number; memory_limit?: number }) =>
+    api.post('/problems', data),
+  update: (id: string, data: { title?: string; description?: string; score?: number; time_limit?: number; memory_limit?: number }) =>
+    api.put(`/problems/${id}`, data),
+  delete: (id: string) => api.delete(`/problems/${id}`),
+  uploadExecutable: (id: string, file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return api.post(`/problems/${id}/executable`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  downloadExecutable: (id: string) =>
+    api.get(`/problems/${id}/executable/download`, { responseType: 'blob' }),
 }
 
 // Execution

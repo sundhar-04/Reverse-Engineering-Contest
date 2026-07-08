@@ -12,10 +12,12 @@ class LeaderboardEntryBase(BaseModel):
     roll_number: str
     department: str
     rank: int
-    is_accepted: bool = False
+    total_score: int = 0
+    max_score: int = 0
+    solved_count: int = 0
+    total_problems: int = 0
     attempts: int = 0
     last_submission_time: Optional[datetime] = None
-    accepted_at: Optional[datetime] = None
 
 
 class LeaderboardEntryInDB(LeaderboardEntryBase):

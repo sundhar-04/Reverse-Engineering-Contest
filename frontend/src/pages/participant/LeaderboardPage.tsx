@@ -70,7 +70,7 @@ export default function LeaderboardPage() {
         backLink={`/contest/${contestId}`}
       />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         {entries.length === 0 ? (
           <EmptyState
             title="No participants yet"
@@ -80,11 +80,11 @@ export default function LeaderboardPage() {
           <div className="bg-surface-800 rounded-xl border border-surface-700 shadow-sm overflow-hidden">
             <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-surface-700/50 text-sm font-medium text-gray-400">
               <div className="col-span-1">#</div>
-              <div className="col-span-4">Name</div>
+              <div className="col-span-3">Name</div>
               <div className="col-span-2">Roll No</div>
-              <div className="col-span-2">Status</div>
-              <div className="col-span-1 text-center">Attempts</div>
-              <div className="col-span-2 text-right">Last Submission</div>
+              <div className="col-span-2">Score</div>
+              <div className="col-span-2">Solved</div>
+              <div className="col-span-2 text-right">Attempts</div>
             </div>
             {entries.map((entry) => (
               <div
@@ -96,21 +96,17 @@ export default function LeaderboardPage() {
                 <div className="col-span-1">
                   <RankBadge rank={entry.rank} />
                 </div>
-                <div className="col-span-4 font-medium truncate">{entry.name}</div>
+                <div className="col-span-3 font-medium truncate">{entry.name}</div>
                 <div className="col-span-2 text-gray-400">{entry.roll_number}</div>
                 <div className="col-span-2">
-                  {entry.is_accepted ? (
-                    <span className="text-green-400 text-xs font-medium">Accepted</span>
-                  ) : (
-                    <span className="text-yellow-400 text-xs">Pending</span>
-                  )}
+                  <span className={`text-xs font-bold ${entry.solved_count === entry.total_problems ? 'text-green-400' : 'text-primary-400'}`}>
+                    {entry.total_score}/{entry.max_score}
+                  </span>
                 </div>
-                <div className="col-span-1 text-center text-gray-400">{entry.attempts}</div>
-                <div className="col-span-2 text-right text-xs text-gray-500">
-                  {entry.last_submission_time
-                    ? new Date(entry.last_submission_time).toLocaleTimeString()
-                    : '-'}
+                <div className="col-span-2 text-gray-400">
+                  {entry.solved_count}/{entry.total_problems}
                 </div>
+                <div className="col-span-2 text-right text-gray-400">{entry.attempts}</div>
               </div>
             ))}
           </div>

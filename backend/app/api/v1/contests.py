@@ -1,13 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import List, Optional
 from datetime import datetime
 from bson import ObjectId
 import os
-import shutil
 from app.api.deps import get_database, get_current_active_admin
 from app.models.contest import ContestCreate, ContestUpdate, ContestResponse, ContestStatusResponse
-from app.models.problem import ProblemCreate, ProblemResponse
 from app.core.config import settings
 
 router = APIRouter()
@@ -22,31 +20,23 @@ async def create_contest(
     contest_doc = contest_data.model_dump()
     contest_doc["created_by"] = ObjectId(current_admin["_id"])
     contest_doc["status"] = "draft"
-    contest_doc["executable_url"] = None
-    contest_doc["executable_name"] = None
     contest_doc["created_at"] = datetime.utcnow()
     contest_doc["updated_at"] = datetime.utcnow()
     
     result = await db.contests.insert_one(contest_doc)
     contest_doc["_id"] = result.inserted_id
     
-    # Create a default problem for this contest
-    problem_doc = {
-        "contest_id": result.inserted_id,
-        "title": "Reverse Engineering Challenge",
-        "description": "Analyze the executable and write an equivalent Python solution",
-        "time_limit": settings.DEFAULT_TIME_LIMIT,
-        "memory_limit": settings.DEFAULT_MEMORY_LIMIT,
-        "executable_name": None,
-        "is_active": True,
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
-    }
-    await db.problems.insert_one(problem_doc)
-    
     return ContestResponse(
         id=str(contest_doc["_id"]),
-        **{k: (str(v) if isinstance(v, ObjectId) else v) for k, v in contest_doc.items() if k != "_id"}
+        name=contest_doc["name"],
+        description=contest_doc["description"],
+        start_time=contest_doc["start_time"],
+        end_time=contest_doc["end_time"],
+        settings=contest_doc["settings"],
+        status=contest_doc["status"],
+        created_by=str(contest_doc["created_by"]),
+        created_at=contest_doc["created_at"],
+        updated_at=contest_doc["updated_at"]
     )
 
 
@@ -70,8 +60,6 @@ async def list_contests(
             end_time=c["end_time"],
             settings=c["settings"],
             status=c["status"],
-            executable_url=c.get("executable_url"),
-            executable_name=c.get("executable_name"),
             created_by=str(c["created_by"]),
             created_at=c["created_at"],
             updated_at=c["updated_at"]
@@ -98,8 +86,6 @@ async def get_contest(
         end_time=contest["end_time"],
         settings=contest["settings"],
         status=contest["status"],
-        executable_url=contest.get("executable_url"),
-        executable_name=contest.get("executable_name"),
         created_by=str(contest["created_by"]),
         created_at=contest["created_at"],
         updated_at=contest["updated_at"]
@@ -134,8 +120,6 @@ async def update_contest(
         end_time=updated["end_time"],
         settings=updated["settings"],
         status=updated["status"],
-        executable_url=updated.get("executable_url"),
-        executable_name=updated.get("executable_name"),
         created_by=str(updated["created_by"]),
         created_at=updated["created_at"],
         updated_at=updated["updated_at"]
@@ -153,11 +137,19 @@ async def delete_contest(
         raise HTTPException(status_code=404, detail="Contest not found")
     
     # Clean up related data
-    problem_ids = await db.problems.find(
+    problems = await db.problems.find(
         {"contest_id": ObjectId(contest_id)},
-        {"_id": 1}
+        {"_id": 1, "executable_name": 1}
     ).to_list(None)
-    problem_ids = [p["_id"] for p in problem_ids]
+    problem_ids = [p["_id"] for p in problems]
+    
+    # Delete executable files from disk
+    for problem in problems:
+        if problem.get("executable_name"):
+            file_path = os.path.join(settings.UPLOAD_DIR, f"{problem['_id']}_{problem['executable_name']}")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+    
     await db.problems.delete_many({"contest_id": ObjectId(contest_id)})
     if problem_ids:
         await db.hidden_testcases.delete_many({"problem_id": {"$in": problem_ids}})
@@ -210,69 +202,7 @@ async def end_contest(
     return {"message": "Contest ended", "status": "ended"}
 
 
-@router.post("/{contest_id}/executable")
-async def upload_executable(
-    contest_id: str,
-    file: UploadFile = File(...),
-    db: AsyncIOMotorDatabase = Depends(get_database),
-    current_admin: dict = Depends(get_current_active_admin)
-):
-    contest = await db.contests.find_one({"_id": ObjectId(contest_id)})
-    if not contest:
-        raise HTTPException(status_code=404, detail="Contest not found")
-    
-    # Validate file extension
-    allowed_extensions = [".exe", ".out", ".bin"]
-    file_ext = os.path.splitext(file.filename)[1].lower()
-    if file_ext not in allowed_extensions:
-        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {allowed_extensions}")
-    
-    # Save file
-    upload_dir = settings.UPLOAD_DIR
-    os.makedirs(upload_dir, exist_ok=True)
-    
-    file_path = os.path.join(upload_dir, f"{contest_id}_{file.filename}")
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    # Update contest
-    await db.contests.update_one(
-        {"_id": ObjectId(contest_id)},
-        {"$set": {
-            "executable_url": f"/api/contests/{contest_id}/executable/download",
-            "executable_name": file.filename,
-            "updated_at": datetime.utcnow()
-        }}
-    )
-    
-    # Update problem with executable name
-    await db.problems.update_one(
-        {"contest_id": ObjectId(contest_id)},
-        {"$set": {"executable_name": file.filename, "updated_at": datetime.utcnow()}}
-    )
-    
-    return {"message": "Executable uploaded", "filename": file.filename}
 
-
-@router.get("/{contest_id}/executable/download")
-async def download_executable(
-    contest_id: str,
-    db: AsyncIOMotorDatabase = Depends(get_database)
-):
-    contest = await db.contests.find_one({"_id": ObjectId(contest_id)})
-    if not contest or not contest.get("executable_name"):
-        raise HTTPException(status_code=404, detail="Executable not found")
-    
-    file_path = os.path.join(settings.UPLOAD_DIR, f"{contest_id}_{contest['executable_name']}")
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Executable file not found")
-    
-    from fastapi.responses import FileResponse
-    return FileResponse(
-        file_path,
-        filename=contest["executable_name"],
-        media_type="application/octet-stream"
-    )
 
 
 @router.get("/public/active")
