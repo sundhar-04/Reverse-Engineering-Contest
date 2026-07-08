@@ -18,7 +18,7 @@ az group delete -n testreg --yes
 
 --- DEPLOY (replace WORKING_REGION with the one that worked) ---
 az group delete -n ReverseCodeRG --yes
-curl -sL https://raw.githubusercontent.com/sundhar-04/Reverse-Engineering-Contest/main/deploy-azure.sh | bash -s -- indiasouthcentral
+curl -sL https://raw.githubusercontent.com/sundhar-04/Reverse-Engineering-Contest/main/deploy-azure.sh | bash -s -- denmarkeast
 
 
 
