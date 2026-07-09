@@ -1,35 +1,44 @@
---- DIAGNOSE WHY VM CREATION IS BLOCKED ---
+--- PORTAL VM CREATION STEPS ---
 
-# Check Azure policy assignments (may show the "best available regions" rule)
-az policy assignment list --query "[].{name:name, policy:policyDefinitionId, scope:scope}" -o table
+1. portal.azure.com → Virtual machines → Create → Azure virtual machine
 
-# Check if Microsoft.Compute resource provider is registered
-az provider show -n Microsoft.Compute --query "registrationState" -o tsv
+2. BASICS tab:
+   Subscription:   Azure for Students
+   Resource group: Create new → "ReverseCodeRG"
+   VM name:        "ReverseCodeVM"
+   Region:         Pick one that's NOT grayed out (try West US, West US 2, etc.)
+   Image:          "Ubuntu Server 22.04 LTS - x64 Gen2"
+   Size:           Click "See all sizes" → search "B2s" → select "Standard_B2s"
+   Username:       "azureuser"
+   SSH public key source: "Generate new key pair"
+   Key pair name:  "ReverseCodeVM_key"
+   → Click "Next: Disks >"
 
-# Register if needed:
-az provider register -n Microsoft.Compute
+3. DISKS tab:
+   (defaults are fine) → "Next: Networking >"
 
-# Try a single VM creation with full error output
-az group create -n testrg -l westus -o none
-az vm create -g testrg -n testvm --image Ubuntu2204 --size Standard_B1s --admin-username azureuser --generate-ssh-keys
-az group delete -n testrg --yes
+4. NETWORKING tab:
+   (defaults are fine) → "Review + create"
 
+5. Click "Create"
+   → Download the .pem file when prompted
+   → Wait for deployment to finish
 
+6. Go to resource → copy the Public IP address
 
---- AFTER DEPLOY ---
+--- SETUP VIA CLOUD SHELL ---
 
-# App URL (printed at end of script)
-http://<IP>:3000
-Admin login: http://<IP>:3000/login
-User: admin / weguysfromcodingninjas
+# Upload deploy script to VM
+scp -i ~/Downloads/ReverseCodeVM_key.pem deploy-azure.sh azureuser@<IP>:~
 
+# SSH in and run setup script (clones repo, starts Docker, creates admin)
+ssh -i ~/Downloads/ReverseCodeVM_key.pem azureuser@<IP> 'bash deploy-azure.sh'
 
-
---- STOP VM (save $) ---
-az vm deallocate -g ReverseCodeRG -n ReverseCodeVM
-
---- START VM ---
-az vm start -g ReverseCodeRG -n ReverseCodeVM
-
---- DELETE EVERYTHING ---
-az group delete -n ReverseCodeRG --yes
+# Or do it step by step:
+ssh -i ~/Downloads/ReverseCodeVM_key.pem azureuser@<IP>
+# Then run:
+sudo apt update && sudo apt install -y docker.io docker-compose-v2
+git clone https://github.com/sundhar-04/Reverse-Engineering-Contest.git
+cd Reverse-Engineering-Contest
+echo "JWT_SECRET=$(openssl rand -hex 64)" > .env
+sudo docker compose up -d
