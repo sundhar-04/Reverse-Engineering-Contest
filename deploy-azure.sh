@@ -10,7 +10,7 @@ set -euo pipefail
 RESOURCE_GROUP="ReverseCodeRG"
 VM_NAME="ReverseCodeVM"
 VM_SIZE="Standard_B2s"             # 2 vCPU, 4GB — ~$30/mo
-LOCATION="denmarkeast"             # Change to a region available in your subscription
+LOCATION="westeurope"              # Change to a region available in your subscription
 ADMIN_USER="azureuser"
 FRONTEND_PORT=3000
 BACKEND_PORT=8000

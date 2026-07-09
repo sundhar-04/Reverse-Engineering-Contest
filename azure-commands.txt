@@ -1,43 +1,46 @@
---- FIND A REGION YOUR SUBSCRIPTION ALLOWS ---
-# The "best available regions" policy blocks most. Test one at a time:
-az group create -n testreg -l eastus --query properties.provisioningState
-az group delete -n testreg --yes
+--- STEP 1: FIND AN ALLOWED REGION ---
+# Azure for Students has a "best available regions" policy.
+# Run each command one at a time until one returns "Succeeded":
 
-# If eastus fails, try each below (replace eastus each time):
-#   westus  westeurope  northeurope  southeastasia
-#   uksouth  australiaeast  centralus  eastus2
-#   southcentralus  westcentralus  francecentral
-#   switzerlandnorth  swedencentral  norwayeast
-#   germanywestcentral  canadacentral  brazilsouth
-#   japaneast  koreacentral  southafricanorth
-#   uaenorth  india  centralindia
+az group create -n testrg -l westeurope --query properties.provisioningState
+az group delete -n testrg --yes
 
-# Once az group create succeeds (returns "Succeeded"), note the region.
+# If westeurope fails, try (one at a time, replace westeurope):
+#   northeurope
+#   westus
+#   eastus
+#   southeastasia
+#   eastus2
+#   uksouth
+#   australiaeast
+#   francecentral
+#   centralus
+#   canadaeast
+
+# Once "Succeeded" appears, note the region name (e.g. westeurope)
 
 
 
---- DEPLOY (replace WORKING_REGION with the one that worked) ---
+--- STEP 2: DEPLOY (replace REGION with the one that worked) ---
 az group delete -n ReverseCodeRG --yes
-curl -sL https://raw.githubusercontent.com/sundhar-04/Reverse-Engineering-Contest/main/deploy-azure.sh | bash -s -- denmarkeast
+curl -sL https://raw.githubusercontent.com/sundhar-04/Reverse-Engineering-Contest/main/deploy-azure.sh | bash -s -- REGION
 
 
 
---- ACCESS THE APP ---
-It prints: http://<IP>:3000
-Login: http://<IP>:3000/login
+--- AFTER DEPLOY ---
+
+# App URL (printed at end of script)
+http://<IP>:3000
+Admin login: http://<IP>:3000/login
 User: admin / weguysfromcodingninjas
 
 
 
---- STOP VM (save money) ---
+--- STOP VM (save $) ---
 az vm deallocate -g ReverseCodeRG -n ReverseCodeVM
 
-
-
---- START VM (resume) ---
+--- START VM ---
 az vm start -g ReverseCodeRG -n ReverseCodeVM
-
-
 
 --- DELETE EVERYTHING ---
 az group delete -n ReverseCodeRG --yes
