@@ -1,19 +1,18 @@
---- STEP 1: FIND A REGION THAT ALLOWS VM CREATION ---
-# All regions pass "az group create", but VM creation is what's blocked.
-# Test VM creation directly with each region (takes ~1 min per attempt):
+--- DIAGNOSE WHY VM CREATION IS BLOCKED ---
 
-REGIONS="eastus eastus2 westeurope northeurope westus westus2 westus3 southcentralus centralus southeastasia uksouth australiaeast francecentral canadacentral brazilsouth swedencentral norwayeast germanywestcentral polandcentral italynorth spaincentral"
-for r in $REGIONS; do
-  echo -n "Testing $r ... "
-  az group create -n testrg -l $r -o none 2>/dev/null
-  result=$(az vm create -g testrg -n testvm --image Ubuntu2204 --size Standard_B1s --admin-username azureuser --generate-ssh-keys -o tsv --query provisioningState 2>&1)
-  az group delete -n testrg --yes -o none 2>/dev/null
-  if [ "$result" = "Succeeded" ]; then
-    echo "WORKING: $r"
-  else
-    echo "FAILED"
-  fi
-done
+# Check Azure policy assignments (may show the "best available regions" rule)
+az policy assignment list --query "[].{name:name, policy:policyDefinitionId, scope:scope}" -o table
+
+# Check if Microsoft.Compute resource provider is registered
+az provider show -n Microsoft.Compute --query "registrationState" -o tsv
+
+# Register if needed:
+az provider register -n Microsoft.Compute
+
+# Try a single VM creation with full error output
+az group create -n testrg -l westus -o none
+az vm create -g testrg -n testvm --image Ubuntu2204 --size Standard_B1s --admin-username azureuser --generate-ssh-keys
+az group delete -n testrg --yes
 
 
 
