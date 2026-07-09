@@ -1,27 +1,16 @@
 --- STEP 1: FIND AN ALLOWED REGION ---
-# Azure for Students has a "best available regions" policy.
-# Run each command one at a time until one returns "Succeeded":
-
-az group create -n testrg -l westeurope --query properties.provisioningState
-az group delete -n testrg --yes
-
-# If westeurope fails, try (one at a time, replace westeurope):
-#   northeurope
-#   westus
-#   eastus
-#   southeastasia
-#   eastus2
-#   uksouth
-#   australiaeast
-#   francecentral
-#   centralus
-#   canadaeast
-
-# Once "Succeeded" appears, note the region name (e.g. westeurope)
+# This tests many regions and reports which ones work:
+for r in eastus eastus2 eastus3 westeurope northeurope westeurope2 westus westus2 westus3 southcentralus centralus southeastasia uksouth ukwest australiaeast francecentral canadacentral canadaeast brazilsouth swedencentral switzerlandnorth norwayeast germanywestcentral polandcentral italynorth spaincentral israelcentral; do
+  result=$(az group create -n testrg -l $r --query properties.provisioningState -o tsv 2>/dev/null)
+  az group delete -n testrg --yes -o none 2>/dev/null
+  if [ "$result" = "Succeeded" ]; then
+    echo "WORKING: $r"
+  fi
+done
 
 
 
---- STEP 2: DEPLOY (replace REGION with the one that worked) ---
+--- STEP 2: DEPLOY (replace REGION with the one that WORKED above) ---
 az group delete -n ReverseCodeRG --yes
 curl -sL https://raw.githubusercontent.com/sundhar-04/Reverse-Engineering-Contest/main/deploy-azure.sh | bash -s -- REGION
 
