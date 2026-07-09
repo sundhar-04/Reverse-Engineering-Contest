@@ -3,14 +3,15 @@ set -euo pipefail
 
 # ============================================================
 #  Azure Deployment Script — ReverseCode Arena
-#  Usage: bash deploy-azure.sh
+#  Usage: bash deploy-azure.sh [region] [vm_size]
+#         bash deploy-azure.sh westeurope Standard_B1s
 #  Prerequisites: Azure CLI installed (https://aka.ms/install-azps)
 # ============================================================
 
 RESOURCE_GROUP="ReverseCodeRG"
 VM_NAME="ReverseCodeVM"
-VM_SIZE="Standard_B2s"             # 2 vCPU, 4GB — ~$30/mo
-LOCATION="westeurope"              # Change to a region available in your subscription
+VM_SIZE="${2:-Standard_B2s}"       # 2 vCPU, 4GB — ~$30/mo (or pass as 2nd arg: e.g. Standard_B1s)
+LOCATION="${1:-westeurope}"        # Change to a region available in your subscription (or pass as 1st arg)
 ADMIN_USER="azureuser"
 FRONTEND_PORT=3000
 BACKEND_PORT=8000
