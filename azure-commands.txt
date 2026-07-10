@@ -1,29 +1,40 @@
---- FIND YOUR SUBSCRIPTION'S ALLOWED REGIONS ---
+--- VM DEPLOYED! NOW SET IT UP ---
 
-# The policy "sys.regionrestriction" controls which regions you can use.
-# Get the policy assignment ID first:
-az policy assignment list --query "[?name=='sys.regionrestriction'].id" -o tsv
+# 1. Get the public IP
+Go to portal.azure.com → Virtual machines → ReverseEngineeringVM → copy Public IP address
 
-# Then show it with the full ID (replace the ID below with the actual one):
-az policy assignment show --ids "/subscriptions/YOUR_SUB_ID/providers/Microsoft.Authorization/policyAssignments/sys.regionrestriction" --query parameters
+# 2. SSH in from Cloud Shell
+ssh -i ~/Downloads/ReverseEngineeringVM_key.pem azureuser@<IP>
 
-# Or get the policy definition rule directly:
-az policy definition show --ids "/providers/Microsoft.Authorization/policyDefinitions/b86dabb9-b578-4d7b-b842-3b45e95769a1" --query policyRule
+# 3. Install Docker
+sudo apt update && sudo apt install -y docker.io docker-compose-v2
+sudo usermod -aG docker $USER
+# Logout and back in:
+exit
+ssh -i ~/Downloads/ReverseEngineeringVM_key.pem azureuser@<IP>
 
-# Use one of those allowed regions in the deploy:
-curl -sL https://raw.githubusercontent.com/sundhar-04/Reverse-Engineering-Contest/main/deploy-azure.sh | bash -s -- <REGION>
-
-
-
---- OR JUST DEPLOY ON YOUR LAPTOP (simpler) ---
-
-# 1. Install Docker Desktop
-# 2. Clone & run:
+# 4. Clone and deploy
 git clone https://github.com/sundhar-04/Reverse-Engineering-Contest.git
 cd Reverse-Engineering-Contest
 echo "JWT_SECRET=$(openssl rand -hex 64)" > .env
-docker compose up -d
+sudo docker compose up -d
 
-# 3. Expose with ngrok (free):
-ngrok http 3000
-# → gives you https://xxxx.ngrok-free.app (share that URL)
+# 5. Open ports 3000 and 8000
+Go to portal → ReverseEngineeringVM → Networking → Add inbound port rule:
+  - Port 3000, Priority 1010, Name: frontend
+  - Port 8000, Priority 1020, Name: backend
+
+# 6. Access
+http://<IP>:3000
+Admin: http://<IP>:3000/login → admin / weguysfromcodingninjas
+
+
+
+--- STOP VM (save $) ---
+az vm deallocate -g ReverseCodeRG -n ReverseEngineeringVM
+
+--- START VM ---
+az vm start -g ReverseCodeRG -n ReverseEngineeringVM
+
+--- DELETE EVERYTHING ---
+az group delete -n ReverseCodeRG --yes
