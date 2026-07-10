@@ -1,8 +1,8 @@
 --- SETUP VIA RUNCOMMAND (portal UI, no SSH needed) ---
 
-Step 1: Go to ReverseEngineeringVM → Operations → Run command → RunShellScript
+Step 1: VM → Operations → Run command → RunShellScript
 
-Step 2: Paste this into the script box and click Run:
+Step 2: Paste & Run:
 
 apt update
 apt install -y docker.io docker-compose-v2
@@ -11,21 +11,23 @@ cd Reverse-Engineering-Contest
 echo "JWT_SECRET=$(openssl rand -hex 64)" > .env
 docker compose up -d
 
-Step 3: Open ports
-VM → Networking → Add inbound port rules:
+Step 3: VM → Networking → Add inbound port rules:
   - Port 3000, Priority 1010, Name: frontend
   - Port 8000, Priority 1020, Name: backend
 
-Step 4: Go to VM → Overview → copy Public IP → open http://<IP>:3000
+Step 4: VM → Overview → copy Public IP
 
+--- ACCESS ---
+http://<IP>:3000            ← app
+http://<IP>:3000/login      ← admin login
+  Username: admin
+  Password: weguysfromcodingninjas
 
+--- STOP (saves $) ---
+VM → Overview → Stop
 
---- STOP / START / DELETE ---
-# Stop VM (saves $):
-Go to VM → Overview → Stop (or az vm deallocate)
-
-# Start VM:
+--- START ---
 VM → Overview → Start
 
-# Delete everything:
+--- DELETE EVERYTHING ---
 Resource groups → ReverseCodeRG → Delete resource group
