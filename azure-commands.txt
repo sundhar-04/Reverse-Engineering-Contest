@@ -51,6 +51,40 @@ http://<IP>:3000/login      ← admin login
   Username: admin
   Password: weguysfromcodingninjas
 
+
+
+--- TROUBLESHOOT LOGIN FAILURE ---
+Run these in RunShellScript one at a time:
+
+# Check containers are running
+docker ps --format "table {{.Names}}\t{{.Status}}"
+
+# Check backend is responding
+curl -s http://localhost:8000/api/contests/public/active | head -c 200
+
+# Check admin exists in DB
+docker exec reversecode-backend python3 -c "
+import asyncio
+from motor.motor_asyncio import AsyncIOMotorClient
+async def c():
+    db = AsyncIOMotorClient('mongodb://mongodb:27017')['reversecode_arena']
+    admin = await db.admins.find_one({'username': 'admin'})
+    print('Found:', admin['username'] if admin else 'NOT FOUND')
+    if admin: print('Password hash:', admin['password'][:30] + '...')
+    AsyncIOMotorClient('mongodb://mongodb:27017').close()
+asyncio.run(c())
+"
+
+# Test login API directly
+curl -s -X POST http://localhost:8000/api/auth/admin/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"weguysfromcodingninjas"}' | head -c 300
+
+# Check backend logs
+docker logs reversecode-backend --tail 30
+
+
+
 --- STOP (saves $) ---
 VM → Overview → Stop
 
