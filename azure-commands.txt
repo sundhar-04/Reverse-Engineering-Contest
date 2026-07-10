@@ -1,44 +1,39 @@
---- PORTAL VM CREATION STEPS ---
+--- STEP 1: FIND ALLOWED REGIONS FROM POLICY ---
 
-1. portal.azure.com → Virtual machines → Create → Azure virtual machine
+# List all policy assignments and find the allowed regions list
+az policy assignment list --query "[].{name:name, policy:policyDefinitionId}" -o table
 
-2. BASICS tab:
-   Subscription:   Azure for Students
-   Resource group: Create new → "ReverseCodeRG"
-   VM name:        "ReverseCodeVM"
-   Region:         Pick one that's NOT grayed out (try West US, West US 2, etc.)
-   Image:          "Ubuntu Server 22.04 LTS - x64 Gen2"
-   Size:           Click "See all sizes" → search "B2s" → select "Standard_B2s"
-   Username:       "azureuser"
-   SSH public key source: "Generate new key pair"
-   Key pair name:  "ReverseCodeVM_key"
-   → Click "Next: Disks >"
+# If you see a "BestAvailableRegions" or similar policy, get its details:
+az policy assignment list --query "[?contains(name, 'region') || contains(name, 'Region') || contains(name, 'location') || contains(name, 'Location')].{name:name, policy:policyDefinitionId}" -o table
 
-3. DISKS tab:
-   (defaults are fine) → "Next: Networking >"
+# Try listing the actual allowed regions from Azure for Students:
+az vm list-skus --size Standard_B2s --all --query "[?restrictions==null || restrictions[?reasonCode!='NotAvailableForSubscription']].{region:locations, name:name}" -o table
 
-4. NETWORKING tab:
-   (defaults are fine) → "Review + create"
+# Or try these regions one at a time in the portal (pick a region, try clicking Review+create):
+#   westus
+#   eastus
+#   westeurope
+#   northeurope
+#   centralus
+#   southcentralus
+#   southeastasia
+#   eastasia
+#   francecentral
+#   uksouth
 
-5. Click "Create"
-   → Download the .pem file when prompted
-   → Wait for deployment to finish
 
-6. Go to resource → copy the Public IP address
 
---- SETUP VIA CLOUD SHELL ---
+--- ALTERNATIVE: USE A DIFFERENT CLOUD ---
 
-# Upload deploy script to VM
-scp -i ~/Downloads/ReverseCodeVM_key.pem deploy-azure.sh azureuser@<IP>:~
+# Option A: Oracle Cloud Free Tier (always free, 2 VMs)
+# Option B: Google Cloud $300 free credits (no region restrictions)
+# Option C: DigitalOcean $200 free credits (use my referral)
+# Option D: Run on your laptop with ngrok (ngrok.com) to expose ports
 
-# SSH in and run setup script (clones repo, starts Docker, creates admin)
-ssh -i ~/Downloads/ReverseCodeVM_key.pem azureuser@<IP> 'bash deploy-azure.sh'
 
-# Or do it step by step:
-ssh -i ~/Downloads/ReverseCodeVM_key.pem azureuser@<IP>
-# Then run:
-sudo apt update && sudo apt install -y docker.io docker-compose-v2
-git clone https://github.com/sundhar-04/Reverse-Engineering-Contest.git
-cd Reverse-Engineering-Contest
-echo "JWT_SECRET=$(openssl rand -hex 64)" > .env
-sudo docker compose up -d
+
+--- DIAGNOSE AZURE POLICY ---
+az policy assignment list -o table
+az provider register -n Microsoft.Compute
+az provider show -n Microsoft.Compute --query "registrationState" -o tsv
+az vm list-usage -l westus -o table
