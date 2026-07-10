@@ -11,11 +11,39 @@ cd Reverse-Engineering-Contest
 echo "JWT_SECRET=$(openssl rand -hex 64)" > .env
 docker compose up -d
 
-Step 3: VM → Networking → Add inbound port rules:
+Step 3: Create admin user
+Same RunShellScript → paste and run:
+
+docker exec reversecode-backend python3 -c "
+import asyncio
+from motor.motor_asyncio import AsyncIOMotorClient
+from passlib.hash import bcrypt
+from datetime import datetime
+async def init():
+    client = AsyncIOMotorClient('mongodb://mongodb:27017')
+    db = client['reversecode_arena']
+    existing = await db.admins.find_one({'username': 'admin'})
+    if not existing:
+        await db.admins.insert_one({
+            'username': 'admin',
+            'password': bcrypt.hash('weguysfromcodingninjas'),
+            'email': 'admin@reversecode.local',
+            'role': 'admin',
+            'is_active': True,
+            'created_at': datetime.utcnow()
+        })
+        print('Admin user created')
+    else:
+        print('Admin user already exists')
+    client.close()
+asyncio.run(init())
+"
+
+Step 4: VM → Networking → Add inbound port rules:
   - Port 3000, Priority 1010, Name: frontend
   - Port 8000, Priority 1020, Name: backend
 
-Step 4: VM → Overview → copy Public IP
+Step 5: VM → Overview → copy Public IP
 
 --- ACCESS ---
 http://<IP>:3000            ← app
