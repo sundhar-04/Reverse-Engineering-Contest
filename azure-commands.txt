@@ -1,39 +1,29 @@
---- STEP 1: FIND ALLOWED REGIONS FROM POLICY ---
+--- FIND YOUR SUBSCRIPTION'S ALLOWED REGIONS ---
 
-# List all policy assignments and find the allowed regions list
-az policy assignment list --query "[].{name:name, policy:policyDefinitionId}" -o table
+# The policy "sys.regionrestriction" controls which regions you can use.
+# Get the policy assignment ID first:
+az policy assignment list --query "[?name=='sys.regionrestriction'].id" -o tsv
 
-# If you see a "BestAvailableRegions" or similar policy, get its details:
-az policy assignment list --query "[?contains(name, 'region') || contains(name, 'Region') || contains(name, 'location') || contains(name, 'Location')].{name:name, policy:policyDefinitionId}" -o table
+# Then show it with the full ID (replace the ID below with the actual one):
+az policy assignment show --ids "/subscriptions/YOUR_SUB_ID/providers/Microsoft.Authorization/policyAssignments/sys.regionrestriction" --query parameters
 
-# Try listing the actual allowed regions from Azure for Students:
-az vm list-skus --size Standard_B2s --all --query "[?restrictions==null || restrictions[?reasonCode!='NotAvailableForSubscription']].{region:locations, name:name}" -o table
+# Or get the policy definition rule directly:
+az policy definition show --ids "/providers/Microsoft.Authorization/policyDefinitions/b86dabb9-b578-4d7b-b842-3b45e95769a1" --query policyRule
 
-# Or try these regions one at a time in the portal (pick a region, try clicking Review+create):
-#   westus
-#   eastus
-#   westeurope
-#   northeurope
-#   centralus
-#   southcentralus
-#   southeastasia
-#   eastasia
-#   francecentral
-#   uksouth
+# Use one of those allowed regions in the deploy:
+curl -sL https://raw.githubusercontent.com/sundhar-04/Reverse-Engineering-Contest/main/deploy-azure.sh | bash -s -- <REGION>
 
 
 
---- ALTERNATIVE: USE A DIFFERENT CLOUD ---
+--- OR JUST DEPLOY ON YOUR LAPTOP (simpler) ---
 
-# Option A: Oracle Cloud Free Tier (always free, 2 VMs)
-# Option B: Google Cloud $300 free credits (no region restrictions)
-# Option C: DigitalOcean $200 free credits (use my referral)
-# Option D: Run on your laptop with ngrok (ngrok.com) to expose ports
+# 1. Install Docker Desktop
+# 2. Clone & run:
+git clone https://github.com/sundhar-04/Reverse-Engineering-Contest.git
+cd Reverse-Engineering-Contest
+echo "JWT_SECRET=$(openssl rand -hex 64)" > .env
+docker compose up -d
 
-
-
---- DIAGNOSE AZURE POLICY ---
-az policy assignment list -o table
-az provider register -n Microsoft.Compute
-az provider show -n Microsoft.Compute --query "registrationState" -o tsv
-az vm list-usage -l westus -o table
+# 3. Expose with ngrok (free):
+ngrok http 3000
+# → gives you https://xxxx.ngrok-free.app (share that URL)
