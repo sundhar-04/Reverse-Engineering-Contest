@@ -22,19 +22,16 @@ from datetime import datetime
 async def init():
     client = AsyncIOMotorClient('mongodb://mongodb:27017')
     db = client['reversecode_arena']
-    existing = await db.admins.find_one({'username': 'admin'})
-    if not existing:
-        await db.admins.insert_one({
-            'username': 'admin',
-            'password': bcrypt.hash('weguysfromcodingninjas'),
-            'email': 'admin@reversecode.local',
-            'role': 'admin',
-            'is_active': True,
-            'created_at': datetime.utcnow()
-        })
-        print('Admin user created')
-    else:
-        print('Admin user already exists')
+    await db.admins.delete_one({'username': 'admin'})
+    await db.admins.insert_one({
+        'username': 'admin',
+        'password_hash': bcrypt.hash('weguysfromcodingninjas'),
+        'email': 'admin@reversecode.local',
+        'role': 'admin',
+        'is_active': True,
+        'created_at': datetime.utcnow()
+    })
+    print('Admin user created (fixed password_hash field)')
     client.close()
 asyncio.run(init())
 "
