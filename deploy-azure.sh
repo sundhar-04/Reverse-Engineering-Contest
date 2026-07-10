@@ -139,7 +139,7 @@ async def init():
         await db.admins.insert_one({
             'username': 'admin',
             'password': bcrypt.hash('weguysfromcodingninjas'),
-            'email': 'admin@reversecode.local',
+            'email': 'admin@example.com',
             'role': 'admin',
             'is_active': True,
             'created_at': datetime.utcnow()

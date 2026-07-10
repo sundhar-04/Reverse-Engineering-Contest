@@ -26,7 +26,7 @@ async def init():
     await db.admins.insert_one({
         'username': 'admin',
         'password_hash': bcrypt.hash('weguysfromcodingninjas'),
-        'email': 'admin@reversecode.local',
+        'email': 'admin@example.com',
         'role': 'admin',
         'is_active': True,
         'created_at': datetime.utcnow()
@@ -67,7 +67,7 @@ async def c():
     db = AsyncIOMotorClient('mongodb://mongodb:27017')['reversecode_arena']
     admin = await db.admins.find_one({'username': 'admin'})
     print('Found:', admin['username'] if admin else 'NOT FOUND')
-    if admin: print('Password hash:', admin['password'][:30] + '...')
+    if admin: print('Password hash:', admin['password_hash'][:30] + '...')
     AsyncIOMotorClient('mongodb://mongodb:27017').close()
 asyncio.run(c())
 "
