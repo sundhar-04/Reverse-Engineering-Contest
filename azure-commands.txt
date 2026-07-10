@@ -1,40 +1,31 @@
---- VM DEPLOYED! NOW SET IT UP ---
+--- SETUP VIA RUNCOMMAND (portal UI, no SSH needed) ---
 
-# 1. Get the public IP
-Go to portal.azure.com → Virtual machines → ReverseEngineeringVM → copy Public IP address
+Step 1: Go to ReverseEngineeringVM → Operations → Run command → RunShellScript
 
-# 2. SSH in from Cloud Shell
-ssh -i ~/Downloads/ReverseEngineeringVM_key.pem azureuser@<IP>
+Step 2: Paste this into the script box and click Run:
 
-# 3. Install Docker
-sudo apt update && sudo apt install -y docker.io docker-compose-v2
-sudo usermod -aG docker $USER
-# Logout and back in:
-exit
-ssh -i ~/Downloads/ReverseEngineeringVM_key.pem azureuser@<IP>
-
-# 4. Clone and deploy
+apt update
+apt install -y docker.io docker-compose-v2
 git clone https://github.com/sundhar-04/Reverse-Engineering-Contest.git
 cd Reverse-Engineering-Contest
 echo "JWT_SECRET=$(openssl rand -hex 64)" > .env
-sudo docker compose up -d
+docker compose up -d
 
-# 5. Open ports 3000 and 8000
-Go to portal → ReverseEngineeringVM → Networking → Add inbound port rule:
+Step 3: Open ports
+VM → Networking → Add inbound port rules:
   - Port 3000, Priority 1010, Name: frontend
   - Port 8000, Priority 1020, Name: backend
 
-# 6. Access
-http://<IP>:3000
-Admin: http://<IP>:3000/login → admin / weguysfromcodingninjas
+Step 4: Go to VM → Overview → copy Public IP → open http://<IP>:3000
 
 
 
---- STOP VM (save $) ---
-az vm deallocate -g ReverseCodeRG -n ReverseEngineeringVM
+--- STOP / START / DELETE ---
+# Stop VM (saves $):
+Go to VM → Overview → Stop (or az vm deallocate)
 
---- START VM ---
-az vm start -g ReverseCodeRG -n ReverseEngineeringVM
+# Start VM:
+VM → Overview → Start
 
---- DELETE EVERYTHING ---
-az group delete -n ReverseCodeRG --yes
+# Delete everything:
+Resource groups → ReverseCodeRG → Delete resource group
