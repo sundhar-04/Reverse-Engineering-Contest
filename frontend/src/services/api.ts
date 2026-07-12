@@ -89,6 +89,10 @@ export const executeAPI = {
     api.post('/execute/run', data),
   submit: (data: { code: string; participant_id: string; problem_id: string }) =>
     api.post('/submissions/submit', data),
+  submitQueue: (data: { code: string; participant_id: string; problem_id: string }) =>
+    api.post('/submissions/submit-queue', data),
+  getQueueStatus: (jobId: string) =>
+    api.get(`/submissions/queue-status/${jobId}`),
 }
 
 // Submissions

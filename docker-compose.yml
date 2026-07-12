@@ -31,7 +31,6 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
           memory: 512M
     security_opt:
       - no-new-privileges:true
@@ -39,6 +38,26 @@ services:
     tmpfs:
       - /tmp:size=100M,noexec,nosuid
     restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: reversecode-worker
+    command: python -m app.workers.judge_worker
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017
+      - MONGODB_DB_NAME=reversecode_arena
+      - REDIS_URL=redis://redis:6379
+      - SANDBOX_URL=http://sandbox:8080
+      - WORKER_ID=worker-0
+    depends_on:
+      - redis
+      - mongodb
+      - sandbox
+    restart: unless-stopped
+    profiles:
+      - worker
 
   backend:
     build:

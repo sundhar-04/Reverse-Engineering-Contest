@@ -6,10 +6,12 @@ from datetime import datetime
 from app.api.deps import get_database
 from app.models.submission import (
     SubmissionCreate, SubmissionResponse, RunCodeRequest, RunCodeResponse,
-    SubmitCodeRequest, SubmitCodeResponse, FailedTestCase
+    SubmitCodeRequest, SubmitCodeResponse, FailedTestCase,
+    QueueSubmitResponse, JobStatusResponse,
 )
 from app.services.execution_service import execute_code
 from app.services.judge_service import judge_submission
+from app.services.queue_service import enqueue_submission, get_job_status
 
 router = APIRouter()
 
@@ -167,6 +169,90 @@ async def submit_code(
     )
 
 
+@router.post("/submit-queue", response_model=QueueSubmitResponse)
+async def submit_code_queue(
+    request: SubmitCodeRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    participant = await db.participants.find_one({"_id": ObjectId(request.participant_id)})
+    if not participant:
+        raise HTTPException(status_code=404, detail="Participant not found")
+
+    problem = await db.problems.find_one({"_id": ObjectId(request.problem_id)})
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+
+    contest = await db.contests.find_one({"_id": participant["contest_id"]})
+    if not contest or contest["status"] != "running":
+        raise HTTPException(status_code=400, detail="Contest is not running")
+
+    testcases = await db.hidden_testcases.find(
+        {"problem_id": ObjectId(request.problem_id), "is_sample": False}
+    ).sort("test_order", 1).to_list(1000)
+
+    if not testcases:
+        raise HTTPException(status_code=400, detail="No hidden test cases available")
+
+    serialized_testcases = []
+    for tc in testcases:
+        serialized_testcases.append({
+            "id": str(tc["_id"]),
+            "input_data": tc.get("input_data", tc.get("input", "")),
+            "expected_output": tc.get("expected_output", tc.get("output", "")),
+            "test_order": tc.get("test_order", 0),
+        })
+
+    submission_doc = {
+        "participant_id": ObjectId(request.participant_id),
+        "problem_id": ObjectId(request.problem_id),
+        "contest_id": participant["contest_id"],
+        "code": request.code,
+        "language": "python",
+        "verdict": "pending",
+        "queue_status": "queued",
+        "is_custom_run": False,
+        "submitted_at": datetime.utcnow(),
+    }
+    result = await db.submissions.insert_one(submission_doc)
+    submission_id = str(result.inserted_id)
+
+    job_id = await enqueue_submission(
+        submission_id=submission_id,
+        code=request.code,
+        test_cases=serialized_testcases,
+        time_limit=problem.get("time_limit", 2),
+        memory_limit=problem.get("memory_limit", 256),
+    )
+
+    await db.submissions.update_one(
+        {"_id": ObjectId(submission_id)},
+        {"$set": {"job_id": job_id, "verdict": "queued"}},
+    )
+
+    return QueueSubmitResponse(
+        submission_id=submission_id,
+        job_id=job_id,
+        queue_status="queued",
+    )
+
+
+@router.get("/queue-status/{job_id}", response_model=JobStatusResponse)
+async def get_queue_status(job_id: str):
+    status = await get_job_status(job_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return JobStatusResponse(
+        job_id=job_id,
+        status=status.get("status", "unknown"),
+        submission_id=status.get("submission_id"),
+        verdict=status.get("verdict"),
+        passed=int(status["passed"]) if status.get("passed") else None,
+        total=int(status["total"]) if status.get("total") else None,
+        error=status.get("error"),
+    )
+
+
 @router.get("/participant/{participant_id}", response_model=List[SubmissionResponse])
 async def list_submissions(
     participant_id: str,
@@ -191,6 +277,8 @@ async def list_submissions(
             custom_runtime=s.get("custom_runtime"),
             custom_status=s.get("custom_status"),
             custom_memory=s.get("custom_memory"),
+            job_id=s.get("job_id"),
+            queue_status=s.get("queue_status", "pending"),
             verdict=s["verdict"],
             failed_test_case=FailedTestCase(**s["failed_test_case"]) if s.get("failed_test_case") else None,
             passed_test_cases=s.get("passed_test_cases", 0),
@@ -227,6 +315,8 @@ async def get_submission(
         custom_runtime=submission.get("custom_runtime"),
         custom_status=submission.get("custom_status"),
         custom_memory=submission.get("custom_memory"),
+        job_id=submission.get("job_id"),
+        queue_status=submission.get("queue_status", "pending"),
         verdict=submission["verdict"],
         failed_test_case=FailedTestCase(**submission["failed_test_case"]) if submission.get("failed_test_case") else None,
         passed_test_cases=submission.get("passed_test_cases", 0),

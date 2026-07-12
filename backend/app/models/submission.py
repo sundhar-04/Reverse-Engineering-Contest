@@ -39,6 +39,10 @@ class SubmissionInDB(SubmissionBase):
     custom_status: Optional[str] = None
     custom_memory: Optional[float] = None
     
+    # Queue fields
+    job_id: Optional[str] = Field(default=None)
+    queue_status: str = Field(default="pending", pattern="^(pending|queued|running|completed|failed)$")
+
     # Judge results
     verdict: str = Field(default="pending", pattern="^(pending|running|accepted|wrong_answer|runtime_error|time_limit_exceeded|memory_limit_exceeded|compile_error)$")
     failed_test_case: Optional[FailedTestCase] = None
@@ -68,6 +72,8 @@ class SubmissionResponse(SubmissionBase):
     custom_status: Optional[str] = None
     custom_memory: Optional[float] = None
     
+    job_id: Optional[str] = None
+    queue_status: str = "pending"
     verdict: str
     failed_test_case: Optional[FailedTestCase] = None
     passed_test_cases: int
@@ -109,3 +115,20 @@ class SubmitCodeResponse(BaseModel):
     failed_test_case: Optional[FailedTestCase] = None
     execution_time: int
     memory_used: float
+
+
+class QueueSubmitResponse(BaseModel):
+    submission_id: str
+    job_id: str
+    queue_status: str = "queued"
+    message: str = "Submission queued for judging"
+
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    status: str
+    submission_id: Optional[str] = None
+    verdict: Optional[str] = None
+    passed: Optional[int] = None
+    total: Optional[int] = None
+    error: Optional[str] = None
