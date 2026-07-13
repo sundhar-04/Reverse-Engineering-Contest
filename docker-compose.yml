@@ -71,6 +71,7 @@ services:
       - SANDBOX_URL=http://sandbox:8080
       - DEBUG=true
       - UPLOAD_DIR=/app/uploads
+      - ENABLE_INPROCESS_WORKER=1
     volumes:
       - ./backend/uploads:/app/uploads
       - ./backend/submissions:/app/submissions

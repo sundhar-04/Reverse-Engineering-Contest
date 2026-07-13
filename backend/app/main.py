@@ -1,3 +1,5 @@
+import asyncio
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,12 +10,37 @@ from app.api.v1 import auth, contests, participants, problems, testcases, submis
 settings = get_settings()
 
 
+_worker_task = None
+
+
+async def _start_inprocess_worker():
+    from app.workers.judge_worker import worker_loop
+    worker_id = os.environ.get("WORKER_ID", "inprocess-0")
+    os.environ["WORKER_ID"] = worker_id
+    print(f"[main] Starting in-process worker ({worker_id})...")
+    try:
+        await worker_loop()
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        print(f"[main] In-process worker exited: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _worker_task
     # Startup
     await connect_to_mongo()
+    if os.environ.get("ENABLE_INPROCESS_WORKER", "1") == "1":
+        _worker_task = asyncio.create_task(_start_inprocess_worker())
     yield
     # Shutdown
+    if _worker_task:
+        _worker_task.cancel()
+        try:
+            await _worker_task
+        except asyncio.CancelledError:
+            pass
     await close_mongo_connection()
 
 
