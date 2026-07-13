@@ -126,42 +126,42 @@ async def process_job(job: dict, db):
             "completed_at": datetime.utcnow().isoformat(),
         })
 
-        # Update leaderboard
-        submission = await db.submissions.find_one({"_id": ObjectId(submission_id)})
-        if submission and submission.get("contest_id"):
-            from app.services.leaderboard_service import update_leaderboard
-            await update_leaderboard(str(submission["contest_id"]), db)
-
-            from app.core.websocket import manager
-            contest_id = str(submission["contest_id"])
-            leaderboard = await db.leaderboard.find(
-                {"contest_id": submission["contest_id"]}
-            ).sort("rank", 1).to_list(1000)
-            lb = [
-                {
-                    "id": str(e["_id"]),
-                    "rank": e["rank"],
-                    "name": e["participant_name"],
-                    "roll_number": e["roll_number"],
-                    "department": e["department"],
-                    "total_score": e.get("total_score", 0),
-                    "max_score": e.get("max_score", 0),
-                    "solved_count": e.get("solved_count", 0),
-                    "total_problems": e.get("total_problems", 0),
-                    "attempts": e["attempts"],
-                    "last_submission_time": e["last_submission_time"].isoformat() if e.get("last_submission_time") else None,
-                }
-                for e in leaderboard
-            ]
-            await manager.broadcast_to_contest(contest_id, {
-                "type": "leaderboard_update",
-                "data": lb,
-                "trigger": {
-                    "participantId": str(submission.get("participant_id", "")),
-                    "verdict": verdict,
-                    "timestamp": datetime.utcnow().isoformat(),
-                },
-            })
+        # Update leaderboard (non-critical - failure won't fail the submission)
+        try:
+            submission = await db.submissions.find_one({"_id": ObjectId(submission_id)})
+            if submission and submission.get("contest_id"):
+                from app.services.leaderboard_service import update_leaderboard
+                await update_leaderboard(str(submission["contest_id"]), db)
+                from app.core.websocket import manager
+                lb_data = await db.leaderboard.find(
+                    {"contest_id": submission["contest_id"]}
+                ).sort("rank", 1).to_list(1000)
+                lb_entries = []
+                for e in lb_data:
+                    lb_entries.append({
+                        "id": str(e["_id"]),
+                        "rank": e["rank"],
+                        "name": e["participant_name"],
+                        "roll_number": e["roll_number"],
+                        "department": e["department"],
+                        "total_score": e.get("total_score", 0),
+                        "max_score": e.get("max_score", 0),
+                        "solved_count": e.get("solved_count", 0),
+                        "total_problems": e.get("total_problems", 0),
+                        "attempts": e["attempts"],
+                        "last_submission_time": e["last_submission_time"].isoformat() if e.get("last_submission_time") else None,
+                    })
+                await manager.broadcast_to_contest(str(submission["contest_id"]), {
+                    "type": "leaderboard_update",
+                    "data": lb_entries,
+                    "trigger": {
+                        "participantId": str(submission.get("participant_id", "")),
+                        "verdict": verdict,
+                        "timestamp": datetime.utcnow().isoformat(),
+                    },
+                })
+        except Exception as lb_err:
+            print(f"[{WORKER_ID}] Leaderboard broadcast failed (non-critical): {lb_err}")
 
     except Exception as e:
         await r.hset(f"{JOB_PREFIX}{job_id}", mapping={
