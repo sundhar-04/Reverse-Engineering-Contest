@@ -55,7 +55,7 @@ export default function IDEPage() {
   const [editorHeight, setEditorHeight] = useState(60)
   const [activeTab, setActiveTab] = useState<'output' | 'input' | 'result'>('output')
   const [submitResult, setSubmitResult] = useState<SubmitCodeResponse | null>(null)
-  const [submitState, setSubmitState] = useState<'idle' | 'queued' | 'running' | 'completed'>('idle')
+  const [submitState, setSubmitState] = useState<'idle' | 'queued' | 'running' | 'completed' | 'failed'>('idle')
   const [problems, setProblems] = useState<Problem[]>([])
   const [currentProblem, setCurrentProblem] = useState<Problem | null>(null)
   const [problemsLoading, setProblemsLoading] = useState(true)
