@@ -151,7 +151,7 @@ async def process_job(job: dict, db):
                     "attempts": e["attempts"],
                     "last_submission_time": e["last_submission_time"].isoformat() if e.get("last_submission_time") else None,
                 }
-                for e in lb
+                for e in leaderboard
             ]
             await manager.broadcast_to_contest(contest_id, {
                 "type": "leaderboard_update",
