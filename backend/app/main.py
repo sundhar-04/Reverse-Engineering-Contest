@@ -10,12 +10,12 @@ from app.api.v1 import auth, contests, participants, problems, testcases, submis
 settings = get_settings()
 
 
-_worker_task = None
+_worker_tasks: list[asyncio.Task] = []
 
 
-async def _start_inprocess_worker():
+async def _start_inprocess_worker(worker_index: int):
     from app.workers.judge_worker import worker_loop
-    worker_id = os.environ.get("WORKER_ID", "inprocess-0")
+    worker_id = os.environ.get("WORKER_ID", f"inprocess-{worker_index}")
     os.environ["WORKER_ID"] = worker_id
     print(f"[main] Starting in-process worker ({worker_id})...")
     try:
@@ -23,24 +23,24 @@ async def _start_inprocess_worker():
     except asyncio.CancelledError:
         pass
     except Exception as e:
-        print(f"[main] In-process worker exited: {e}")
+        print(f"[main] In-process worker ({worker_id}) exited: {e}")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _worker_task
+    global _worker_tasks
     # Startup
     await connect_to_mongo()
+    worker_count = int(os.environ.get("INPROCESS_WORKER_COUNT", "4"))
     if os.environ.get("ENABLE_INPROCESS_WORKER", "1") == "1":
-        _worker_task = asyncio.create_task(_start_inprocess_worker())
+        for i in range(worker_count):
+            task = asyncio.create_task(_start_inprocess_worker(i))
+            _worker_tasks.append(task)
     yield
     # Shutdown
-    if _worker_task:
-        _worker_task.cancel()
-        try:
-            await _worker_task
-        except asyncio.CancelledError:
-            pass
+    for task in _worker_tasks:
+        task.cancel()
+    await asyncio.gather(*_worker_tasks, return_exceptions=True)
     await close_mongo_connection()
 
 
