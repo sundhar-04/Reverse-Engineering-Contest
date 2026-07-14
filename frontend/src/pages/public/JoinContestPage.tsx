@@ -43,10 +43,11 @@ export default function JoinContestPage() {
         localStorage.setItem('contest_id', contestId)
         localStorage.setItem('participant_name', name)
         localStorage.setItem('roll_number', rollNumber)
+        localStorage.setItem('department', department)
         navigate(`/contest/${contestId}`)
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || isLogin ? 'Login failed' : 'Failed to join contest')
+      toast.error(err.response?.data?.detail || (isLogin ? 'Login failed' : 'Failed to join contest'))
     } finally {
       setLoading(false)
     }
@@ -56,7 +57,7 @@ export default function JoinContestPage() {
     <div className="min-h-screen flex items-center justify-center px-4 py-16">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <Link to="/" className="text-2xl font-bold text-primary-400 font-mono"></></Link>
+          <Link to="/" className="text-2xl font-bold text-primary-400 font-mono">ReverseCode Arena</Link>
           <p className="text-gray-400 mt-2">{isLogin ? 'Login to Contest' : 'Join a Contest'}</p>
         </div>
         <form onSubmit={handleSubmit} className="bg-surface-800 rounded-xl p-8 space-y-5 border border-surface-700 shadow-sm">
@@ -114,7 +115,7 @@ export default function JoinContestPage() {
                 />
               </div>
             </>
-          }
+          )}
           <button
             type="submit"
             disabled={loading}
