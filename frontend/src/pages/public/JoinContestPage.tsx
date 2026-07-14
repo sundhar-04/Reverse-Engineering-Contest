@@ -12,6 +12,7 @@ export default function JoinContestPage() {
   const [rollNumber, setRollNumber] = useState('')
   const [department, setDepartment] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isLogin, setIsLogin] = useState(false)
 
   const navigate = useNavigate()
 
@@ -27,15 +28,25 @@ export default function JoinContestPage() {
     if (!contestId) { toast.error('Select a contest'); return }
     setLoading(true)
     try {
-      const res = await participantAPI.join({ contest_id: contestId, name, roll_number: rollNumber, department })
-      toast.success('Joined contest successfully!')
-      localStorage.setItem('participant_id', res.data.participant_id)
-      localStorage.setItem('contest_id', contestId)
-      localStorage.setItem('participant_name', name)
-      localStorage.setItem('roll_number', rollNumber)
-      navigate(`/contest/${contestId}`)
+      if (isLogin) {
+        const res = await participantAPI.getByRoll(contestId, rollNumber)
+        toast.success('Login successful!')
+        localStorage.setItem('participant_id', res.data.id)
+        localStorage.setItem('contest_id', contestId)
+        localStorage.setItem('participant_name', res.data.name)
+        localStorage.setItem('roll_number', rollNumber)
+        navigate(`/contest/${contestId}`)
+      } else {
+        const res = await participantAPI.join({ contest_id: contestId, name, roll_number: rollNumber, department })
+        toast.success('Joined contest successfully!')
+        localStorage.setItem('participant_id', res.data.participant_id)
+        localStorage.setItem('contest_id', contestId)
+        localStorage.setItem('participant_name', name)
+        localStorage.setItem('roll_number', rollNumber)
+        navigate(`/contest/${contestId}`)
+      }
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to join contest')
+      toast.error(err.response?.data?.detail || isLogin ? 'Login failed' : 'Failed to join contest')
     } finally {
       setLoading(false)
     }
@@ -45,8 +56,8 @@ export default function JoinContestPage() {
     <div className="min-h-screen flex items-center justify-center px-4 py-16">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <Link to="/" className="text-2xl font-bold text-primary-400 font-mono">&lt;/&gt;</Link>
-          <p className="text-gray-400 mt-2">Join a Contest</p>
+          <Link to="/" className="text-2xl font-bold text-primary-400 font-mono"></></Link>
+          <p className="text-gray-400 mt-2">{isLogin ? 'Login to Contest' : 'Join a Contest'}</p>
         </div>
         <form onSubmit={handleSubmit} className="bg-surface-800 rounded-xl p-8 space-y-5 border border-surface-700 shadow-sm">
           <div>
@@ -71,16 +82,6 @@ export default function JoinContestPage() {
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1.5">Full Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-lg bg-surface-900 border border-surface-600 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition"
-              required
-            />
-          </div>
-          <div>
             <label className="block text-sm font-medium mb-1.5">Roll Number</label>
             <input
               type="text"
@@ -90,16 +91,30 @@ export default function JoinContestPage() {
               required
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Department</label>
-            <input
-              type="text"
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-lg bg-surface-900 border border-surface-600 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition"
-              required
-            />
-          </div>
+          {!isLogin && (
+            <>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Full Name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-surface-900 border border-surface-600 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Department</label>
+                <input
+                  type="text"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-surface-900 border border-surface-600 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition"
+                  required
+                />
+              </div>
+            </>
+          }
           <button
             type="submit"
             disabled={loading}
@@ -111,8 +126,19 @@ export default function JoinContestPage() {
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             )}
-            {loading ? 'Joining...' : 'Join Contest'}
+            {loading ? (isLogin ? 'Logging in...' : 'Joining...') : (isLogin ? 'Login' : 'Join Contest')}
           </button>
+          <div className="text-center text-sm text-gray-400">
+            {isLogin ? (
+              <span onClick={() => setIsLogin(false)} className="text-primary-400 hover:underline cursor-pointer">
+                New participant? Join instead
+              </span>
+            ) : (
+              <span onClick={() => setIsLogin(true)} className="text-primary-400 hover:underline cursor-pointer">
+                Already registered? Login instead
+              </span>
+            )}
+          </div>
         </form>
       </div>
     </div>
