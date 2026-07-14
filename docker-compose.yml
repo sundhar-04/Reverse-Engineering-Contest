@@ -72,7 +72,7 @@ services:
       - DEBUG=true
       - UPLOAD_DIR=/app/uploads
       - ENABLE_INPROCESS_WORKER=1
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,https://*.vercel.app
+      - CORS_ORIGINS=*
     volumes:
       - ./backend/uploads:/app/uploads
       - ./backend/submissions:/app/submissions
