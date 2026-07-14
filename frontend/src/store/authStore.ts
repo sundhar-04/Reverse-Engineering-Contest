@@ -43,6 +43,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
       localStorage.removeItem('admin_token')
       set({ admin: null, isAuthenticated: false, isLoading: false })
+      if (window.location.pathname.startsWith('/admin')) {
+        window.location.href = '/login'
+      }
     }
   },
 }))

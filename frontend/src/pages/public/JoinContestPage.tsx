@@ -28,6 +28,7 @@ export default function JoinContestPage() {
     if (!contestId) { toast.error('Select a contest'); return }
     setLoading(true)
     try {
+      localStorage.removeItem('admin_token')
       if (isLogin) {
         const res = await participantAPI.getByRoll(contestId, rollNumber)
         toast.success('Login successful!')
