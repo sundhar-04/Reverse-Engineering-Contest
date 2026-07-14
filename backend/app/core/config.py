@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from pydantic import field_validator
+from typing import Optional, List
 from functools import lru_cache
 
 
@@ -19,7 +20,14 @@ class Settings(BaseSettings):
     SANDBOX_URL: str = "http://sandbox:8080"
     DEFAULT_TIME_LIMIT: int = 2
     DEFAULT_MEMORY_LIMIT: int = 256
-    CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors(cls, v):
+        if isinstance(v, str):
+            return [x.strip() for x in v.split(",") if x.strip()]
+        return v
 
     class Config:
         env_file = ".env"
