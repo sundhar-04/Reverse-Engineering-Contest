@@ -118,14 +118,6 @@ async def process_job(job: dict, db):
             {"$set": update_doc},
         )
 
-        await r.hset(f"{JOB_PREFIX}{job_id}", mapping={
-            "status": "completed",
-            "verdict": verdict,
-            "passed": str(passed),
-            "total": str(total),
-            "completed_at": datetime.utcnow().isoformat(),
-        })
-
         # Update leaderboard (non-critical - failure won't fail the submission)
         try:
             submission = await db.submissions.find_one({"_id": ObjectId(submission_id)})
@@ -164,13 +156,16 @@ async def process_job(job: dict, db):
             print(f"[{WORKER_ID}] Leaderboard broadcast failed (non-critical): {lb_err}")
 
     except Exception as e:
-        await r.hset(f"{JOB_PREFIX}{job_id}", mapping={
-            "status": "failed",
-            "error": str(e),
-            "failed_at": datetime.utcnow().isoformat(),
-        })
+        print(f"[{WORKER_ID}] Job failed: {e}")
 
     finally:
+        await r.hset(f"{JOB_PREFIX}{job_id}", mapping={
+            "status": "completed",
+            "verdict": verdict,
+            "passed": str(passed),
+            "total": str(total),
+            "completed_at": datetime.utcnow().isoformat(),
+        })
         await r.aclose()
 
 
