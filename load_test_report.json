@@ -1,0 +1,45 @@
+{
+  "timestamp": "2026-07-13T14:52:23.320772",
+  "target": "http://98.70.43.22:3000",
+  "config": {
+    "participants": 100,
+    "submissions": 60,
+    "vm": "Standard_B2as_v2 (2 vCPU, 8 GB RAM)"
+  },
+  "results": {
+    "creation": {
+      "count": 100,
+      "time_s": 0.38,
+      "p50": 257.36,
+      "p95": 340.99,
+      "p99": 342.88
+    },
+    "lookups": {
+      "count": 100,
+      "time_s": 0.26,
+      "rps": 389.46,
+      "p50": 185.24,
+      "p95": 231.46,
+      "p99": 240.54,
+      "min": 104.32,
+      "max": 240.54
+    },
+    "submissions": {
+      "enqueued": 60,
+      "enq_time_s": 0.57,
+      "enq_rps": 105.79,
+      "enq_p50": 521.87,
+      "enq_p95": 554.92,
+      "enq_p99": 559.7,
+      "completed": 0,
+      "failed": 0,
+      "timeout": 60,
+      "e2e_p50": null,
+      "e2e_p95": null,
+      "e2e_p99": null
+    }
+  },
+  "issues": [
+    "Workers did not process queue jobs - check docker logs on VM"
+  ]
+}

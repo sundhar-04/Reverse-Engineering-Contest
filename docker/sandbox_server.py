@@ -1,11 +1,11 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import subprocess
-import tempfile
+import asyncio
 import os
-import signal
-import time
 import resource
+import signal
+import tempfile
+import time
+from fastapi import FastAPI
+from pydantic import BaseModel
 
 app = FastAPI(title="Python Sandbox")
 
@@ -33,39 +33,44 @@ def set_limits(time_limit: int, memory_limit: int):
     resource.setrlimit(resource.RLIMIT_FSIZE, (1024 * 1024, 1024 * 1024))
 
 
+async def get_memory_usage(pid: int) -> float:
+    try:
+        with open(f'/proc/{pid}/status') as f:
+            for line in f:
+                if line.startswith('VmRSS:'):
+                    return int(line.split()[1]) / 1024
+    except Exception:
+        pass
+    return 0.0
+
+
 @app.post("/execute", response_model=ExecResponse)
 async def execute_code(req: ExecRequest):
     start = time.time()
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+
+    fd, code_path = tempfile.mkstemp(suffix='.py')
+    os.close(fd)
+    with open(code_path, 'w') as f:
         f.write(req.code)
-        code_path = f.name
-    
+
     try:
-        input_data = req.input_data.encode() if req.input_data else None
-        
-        proc = subprocess.Popen(
-            ['python3', '-u', code_path],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            preexec_fn=lambda: set_limits(req.time_limit, req.memory_limit)
+        proc = await asyncio.create_subprocess_exec(
+            'python3', '-u', code_path,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            preexec_fn=lambda: set_limits(req.time_limit, req.memory_limit),
         )
-        
+
         try:
-            stdout, stderr = proc.communicate(input=input_data, timeout=req.time_limit + 2)
+            input_data = req.input_data.encode() if req.input_data else None
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(input=input_data),
+                timeout=req.time_limit + 2,
+            )
             runtime_ms = int((time.time() - start) * 1000)
-            
-            memory_mb = 0
-            try:
-                with open(f'/proc/{proc.pid}/status') as f:
-                    for line in f:
-                        if line.startswith('VmRSS:'):
-                            memory_mb = int(line.split()[1]) / 1024
-                            break
-            except:
-                pass
-            
+            memory_mb = await get_memory_usage(proc.pid) if proc.returncode is not None else 0.0
+
             if proc.returncode == 0:
                 status = "success"
             elif proc.returncode == -signal.SIGXCPU or proc.returncode == -signal.SIGKILL:
@@ -74,30 +79,33 @@ async def execute_code(req: ExecRequest):
                 status = "memory_limit"
             else:
                 status = "runtime_error"
-            
+
             return ExecResponse(
                 stdout=stdout.decode('utf-8', errors='replace'),
                 stderr=stderr.decode('utf-8', errors='replace'),
                 runtime_ms=runtime_ms,
                 memory_mb=memory_mb,
-                status=status
+                status=status,
             )
-            
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.communicate()
+
+        except asyncio.TimeoutError:
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
+            stdout, stderr = await proc.communicate()
             return ExecResponse(
                 stdout="",
                 stderr="Time Limit Exceeded",
                 runtime_ms=req.time_limit * 1000,
                 memory_mb=0,
-                status="timeout"
+                status="timeout",
             )
-            
+
     finally:
         try:
             os.unlink(code_path)
-        except:
+        except OSError:
             pass
 
 

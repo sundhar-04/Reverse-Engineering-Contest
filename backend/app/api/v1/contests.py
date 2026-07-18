@@ -71,8 +71,7 @@ async def list_contests(
 @router.get("/{contest_id}", response_model=ContestResponse)
 async def get_contest(
     contest_id: str,
-    db: AsyncIOMotorDatabase = Depends(get_database),
-    current_admin: dict = Depends(get_current_active_admin)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     contest = await db.contests.find_one({"_id": ObjectId(contest_id)})
     if not contest:

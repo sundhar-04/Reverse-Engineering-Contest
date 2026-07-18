@@ -1,0 +1,77 @@
+--- LOCAL DEV SETUP (WINDOWS - PowerShell) ---
+
+# 1. Clone
+git clone https://github.com/sundhar-04/Reverse-Engineering-Contest.git
+cd Reverse-Engineering-Contest
+
+# 2. Generate JWT secret (PowerShell)
+$secret = -join ((48..57 + 97..102) | ForEach-Object { [char]$_ } | Get-Random -Count 64)
+"JWT_SECRET=$secret" | Out-File -FilePath .env -Encoding ascii
+
+# 3. Start all services (needs Docker Desktop with 4+ GB RAM)
+docker compose up -d
+
+# 4. Create admin user (pipe Python script via stdin)
+@"
+import asyncio
+from motor.motor_asyncio import AsyncIOMotorClient
+from passlib.hash import bcrypt
+from datetime import datetime
+async def init():
+    client = AsyncIOMotorClient('mongodb://mongodb:27017')
+    db = client['reversecode_arena']
+    await db.admins.delete_one({'username': 'admin'})
+    await db.admins.insert_one({
+        'username': 'admin',
+        'password_hash': bcrypt.hash('weguysfromcodingninjas'),
+        'email': 'admin@example.com',
+        'role': 'admin',
+        'is_active': True,
+        'created_at': datetime.utcnow()
+    })
+    print('Admin created')
+    client.close()
+asyncio.run(init())
+"@ | docker exec -i reversecode-backend python3
+
+# 5. Access in browser
+# http://localhost:3000        ← frontend
+# http://localhost:8000        ← backend API
+# http://localhost:8000/docs   ← API docs (Swagger)
+# Login: admin / weguysfromcodingninjas
+
+# 6. Stop
+docker compose down
+
+# 7. Full reset (deletes data)
+docker compose down -v
+
+
+
+--- ALTERNATIVE: GIT BASH (if you installed Git for Windows) ---
+# Steps 1, 3, 5, 6, 7 are the same as above.
+# Step 2 (JWT secret):
+openssl rand -hex 64 | sed 's/^/JWT_SECRET=/' > .env
+
+# Step 4 (create admin - paste this entire block):
+docker exec reversecode-backend python3 << 'EOF'
+import asyncio
+from motor.motor_asyncio import AsyncIOMotorClient
+from passlib.hash import bcrypt
+from datetime import datetime
+async def init():
+    client = AsyncIOMotorClient('mongodb://mongodb:27017')
+    db = client['reversecode_arena']
+    await db.admins.delete_one({'username': 'admin'})
+    await db.admins.insert_one({
+        'username': 'admin',
+        'password_hash': bcrypt.hash('weguysfromcodingninjas'),
+        'email': 'admin@example.com',
+        'role': 'admin',
+        'is_active': True,
+        'created_at': datetime.utcnow()
+    })
+    print('Admin created')
+    client.close()
+asyncio.run(init())
+EOF

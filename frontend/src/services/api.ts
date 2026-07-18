@@ -21,7 +21,6 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('admin_token')
-      window.location.href = '/login'
     }
     return Promise.reject(error)
   }
@@ -89,6 +88,10 @@ export const executeAPI = {
     api.post('/execute/run', data),
   submit: (data: { code: string; participant_id: string; problem_id: string }) =>
     api.post('/submissions/submit', data),
+  submitQueue: (data: { code: string; participant_id: string; problem_id: string }) =>
+    api.post('/submissions/submit-queue', data),
+  getQueueStatus: (jobId: string) =>
+    api.get(`/submissions/queue-status/${jobId}`),
 }
 
 // Submissions

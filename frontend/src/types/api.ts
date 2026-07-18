@@ -114,3 +114,20 @@ export interface SubmitCodeResponse {
   execution_time: number
   memory_used: number
 }
+
+export interface QueueSubmitResponse {
+  submission_id: string
+  job_id: string
+  queue_status: string
+  message: string
+}
+
+export interface JobStatusResponse {
+  job_id: string
+  status: string
+  submission_id?: string
+  verdict?: string
+  passed?: number
+  total?: number
+  error?: string
+}

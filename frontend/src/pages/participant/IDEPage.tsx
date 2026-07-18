@@ -2,7 +2,7 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
 import Editor from '@monaco-editor/react'
 import { useEditorStore } from '../../store/editorStore'
-import { executeAPI, problemAPI } from '../../services/api'
+import { executeAPI, submissionAPI, problemAPI } from '../../services/api'
 import type { RunCodeResponse, SubmitCodeResponse, Problem } from '../../types/api'
 import { VERDICT_COLORS } from '../../utils/verdicts'
 import toast from 'react-hot-toast'
@@ -15,7 +15,10 @@ const VERDICT_BADGE: Record<string, string> = {
   memory_limit_exceeded: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
   compile_error: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
   pending: 'bg-gray-500/15 text-gray-400 border-gray-500/30',
-  running: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  queued: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  running: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+  completed: 'bg-green-500/15 text-green-400 border-green-500/30',
+  failed: 'bg-red-500/15 text-red-400 border-red-500/30',
 }
 
 function Spinner() {
@@ -48,12 +51,20 @@ export default function IDEPage() {
   const editorRef = useRef<any>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [editorHeight, setEditorHeight] = useState(60)
   const [activeTab, setActiveTab] = useState<'output' | 'input' | 'result'>('output')
   const [submitResult, setSubmitResult] = useState<SubmitCodeResponse | null>(null)
+  const [submitState, setSubmitState] = useState<'idle' | 'queued' | 'running' | 'completed' | 'failed'>('idle')
   const [problems, setProblems] = useState<Problem[]>([])
   const [currentProblem, setCurrentProblem] = useState<Problem | null>(null)
   const [problemsLoading, setProblemsLoading] = useState(true)
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [])
 
   const problemIdFromUrl = searchParams.get('problemId') || ''
 
@@ -125,6 +136,7 @@ export default function IDEPage() {
   }, [problems, problemIdFromUrl])
 
   const handleProblemChange = (problemId: string) => {
+    if (pollRef.current) clearInterval(pollRef.current)
     setSearchParams({ problemId }, { replace: true })
     const found = problems.find((p) => p.id === problemId)
     if (found) {
@@ -133,6 +145,7 @@ export default function IDEPage() {
     }
     clearOutput()
     setSubmitResult(null)
+    setSubmitState('idle')
     setActiveTab('output')
   }
 
@@ -164,29 +177,70 @@ export default function IDEPage() {
   const handleSubmit = async () => {
     const code = currentProblem ? (codes[currentProblem.id] || '') : ''
     if (!code.trim()) { toast.error('No code to submit'); return }
+    if (pollRef.current) clearInterval(pollRef.current)
     setSubmitting(true)
     clearOutput()
     setSubmitResult(null)
+    setSubmitState('queued')
 
     try {
       const pid = currentProblem?.id || problemIdFromUrl
-      const res = await executeAPI.submit({
+      const res = await executeAPI.submitQueue({
         code,
         participant_id: participantId,
         problem_id: pid,
       })
-      const data: SubmitCodeResponse = res.data
-      setSubmitResult(data)
+      const { submission_id, job_id, queue_status } = res.data
+
+      setSubmitResult({
+        verdict: queue_status,
+        passed_test_cases: 0,
+        total_test_cases: 0,
+        failed_test_case: null,
+        execution_time: 0,
+        memory_used: 0,
+      })
       setActiveTab('result')
 
-      if (data.verdict === 'accepted') {
-        toast.success('All test cases passed!')
-      } else {
-        toast.error(`Failed: ${data.verdict.replace(/_/g, ' ')}`)
-      }
+      pollRef.current = setInterval(async () => {
+        try {
+          const statusRes = await executeAPI.getQueueStatus(job_id)
+          const { status, verdict, passed, total } = statusRes.data
+
+          if (status === 'completed') {
+            if (pollRef.current) clearInterval(pollRef.current)
+            const subRes = await submissionAPI.get(submission_id)
+            setSubmitResult(subRes.data)
+            setSubmitState('completed')
+            setSubmitting(false)
+            if (subRes.data.verdict === 'accepted') {
+              toast.success('All test cases passed!')
+            } else {
+              toast.error(`Failed: ${subRes.data.verdict.replace(/_/g, ' ')}`)
+            }
+          } else if (status === 'failed') {
+            if (pollRef.current) clearInterval(pollRef.current)
+            setSubmitState('failed')
+            setSubmitting(false)
+            toast.error('Submission failed')
+          } else {
+            setSubmitState(status as 'queued' | 'running')
+            setSubmitResult(prev => prev ? {
+              ...prev,
+              verdict: verdict || status,
+            } : null)
+          }
+        } catch {
+          if (pollRef.current) clearInterval(pollRef.current)
+          setSubmitting(false)
+          toast.error('Failed to check submission status')
+        }
+      }, 2000)
+
     } catch (err: any) {
+      setSubmitState('idle')
+      setSubmitResult(null)
       toast.error(err.response?.data?.detail || 'Submission failed')
-    } finally {
       setSubmitting(false)
     }
   }
@@ -319,19 +373,32 @@ export default function IDEPage() {
                 <div className="p-5 space-y-4">
                   <div className="flex items-center gap-3">
                     <span className={`inline-block text-sm font-bold px-3 py-1 rounded-full border ${VERDICT_BADGE[submitResult.verdict] || 'bg-gray-500/15 text-gray-400 border-gray-500/30'}`}>
-                      {submitResult.verdict.replace(/_/g, ' ').toUpperCase()}
+                      {submitState === 'queued' ? 'QUEUED' : submitState === 'running' ? 'JUDGING' : submitResult.verdict.replace(/_/g, ' ').toUpperCase()}
                     </span>
-                    <span className="text-sm text-gray-400">
-                      {submitResult.passed_test_cases}/{submitResult.total_test_cases} test cases passed
-                    </span>
-                    {submitResult.execution_time > 0 && (
-                      <span className="text-xs text-gray-500">{submitResult.execution_time}ms</span>
+                    {submitState === 'completed' && (
+                      <>
+                        <span className="text-sm text-gray-400">
+                          {submitResult.passed_test_cases}/{submitResult.total_test_cases} test cases passed
+                        </span>
+                        {submitResult.execution_time > 0 && (
+                          <span className="text-xs text-gray-500">{submitResult.execution_time}ms</span>
+                        )}
+                      </>
+                    )}
+                    {(submitState === 'queued' || submitState === 'running') && (
+                      <span className="text-sm text-gray-400 flex items-center gap-2">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        {submitState === 'queued' ? 'Waiting in queue...' : 'Running test cases...'}
+                      </span>
                     )}
                   </div>
 
-                  <div className="h-px bg-surface-700" />
+                  {submitState === 'completed' && <div className="h-px bg-surface-700" />}
 
-                  {submitResult.failed_test_case ? (
+                  {submitState === 'completed' && submitResult.failed_test_case ? (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div className="bg-surface-900 rounded-lg p-3 border border-surface-700">
                         <p className="text-xs text-gray-500 font-medium mb-1.5">Input #{submitResult.failed_test_case.test_order + 1}</p>
@@ -346,14 +413,14 @@ export default function IDEPage() {
                         <pre className="text-sm text-red-300 font-mono whitespace-pre-wrap">{submitResult.failed_test_case.actual_output}</pre>
                       </div>
                     </div>
-                  ) : (
+                  ) : submitState === 'completed' ? (
                     <div className="flex items-center gap-2 text-green-400 text-sm">
                       <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                       All test cases passed
                     </div>
-                  )}
+                  ) : null}
                 </div>
               ) : (
                 <div className="p-4 font-mono text-sm space-y-1.5">
@@ -427,7 +494,7 @@ export default function IDEPage() {
           >
             {isSubmitting && <Spinner />}
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-            {isSubmitting ? 'Judging...' : 'Submit'}
+            {isSubmitting ? submitState === 'queued' ? 'Queued...' : 'Judging...' : 'Submit'}
           </button>
         </div>
       </div>
