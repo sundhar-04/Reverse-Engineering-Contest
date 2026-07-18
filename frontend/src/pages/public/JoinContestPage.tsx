@@ -4,6 +4,30 @@ import { participantAPI, contestAPI } from '../../services/api'
 import toast from 'react-hot-toast'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 
+const DEPARTMENTS = ['CSE', 'IT', 'ECE', 'EEE', 'MECH', 'CIVIL', 'CHEMICAL', 'BIOTECH', 'MCA', 'MBA'] as const
+
+const ROLL_REGEX = /^(2[3-9]\d|2[3-9]\d)03\d{3}$/
+
+const validateRollNumber = (roll: string): string | null => {
+  if (!roll.trim()) return 'Roll number is required'
+  if (!/^\d{10}$/.test(roll)) return 'Roll number must be exactly 10 digits'
+  if (!ROLL_REGEX.test(roll)) return 'Roll number must match format: 2403xxx/2303xxx (YY + 03 + serial)'
+  return null
+}
+
+const validateName = (name: string): string | null => {
+  if (!name.trim()) return 'Name is required'
+  if (!/^[A-Za-z\s]+$/.test(name)) return 'Name must contain only alphabets and spaces'
+  if (name.trim().length < 2) return 'Name must be at least 2 characters'
+  return null
+}
+
+const validateDepartment = (dept: string): string | null => {
+  if (!dept.trim()) return 'Department is required'
+  if (!DEPARTMENTS.includes(dept as typeof DEPARTMENTS[number])) return 'Select a valid department'
+  return null
+}
+
 export default function JoinContestPage() {
   const [contests, setContests] = useState<{ id: string; name: string }[]>([])
   const [contestsLoading, setContestsLoading] = useState(true)
@@ -13,6 +37,7 @@ export default function JoinContestPage() {
   const [department, setDepartment] = useState('')
   const [loading, setLoading] = useState(false)
   const [isLogin, setIsLogin] = useState(false)
+  const [errors, setErrors] = useState<{ rollNumber?: string; name?: string; department?: string }>({})
 
   const navigate = useNavigate()
 
@@ -23,8 +48,23 @@ export default function JoinContestPage() {
       .finally(() => setContestsLoading(false))
   }, [])
 
+  const validateForm = (): boolean => {
+    const newErrors: typeof errors = {}
+    const rollError = validateRollNumber(rollNumber)
+    if (rollError) newErrors.rollNumber = rollError
+    if (!isLogin) {
+      const nameError = validateName(name)
+      if (nameError) newErrors.name = nameError
+      const deptError = validateDepartment(department)
+      if (deptError) newErrors.department = deptError
+    }
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!validateForm()) return
     if (!contestId) { toast.error('Select a contest'); return }
     setLoading(true)
     try {
@@ -84,36 +124,54 @@ export default function JoinContestPage() {
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1.5">Roll Number</label>
+            <label className="block text-sm font-medium mb-1.5">Roll Number <span className="text-primary-400">*</span></label>
             <input
               type="text"
               value={rollNumber}
-              onChange={(e) => setRollNumber(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-lg bg-surface-900 border border-surface-600 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition"
+              onChange={(e) => setRollNumber(e.target.value.toUpperCase())}
+              maxLength={10}
+              placeholder="2403001"
+              className={`w-full px-3.5 py-2.5 rounded-lg bg-surface-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition ${
+                errors.rollNumber ? 'border-red-500 focus:ring-red-500/30' : 'border-surface-600'
+              }`}
               required
             />
+            {errors.rollNumber && <p className="mt-1 text-xs text-red-400">{errors.rollNumber}</p>}
+            <p className="mt-1 text-xs text-gray-500">Format: 2403001 (Year 24 + 03 + Serial 001)</p>
           </div>
           {!isLogin && (
             <>
               <div>
-                <label className="block text-sm font-medium mb-1.5">Full Name</label>
+                <label className="block text-sm font-medium mb-1.5">Full Name <span className="text-primary-400">*</span></label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-surface-900 border border-surface-600 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition"
+                  placeholder="John Doe"
+                  className={`w-full px-3.5 py-2.5 rounded-lg bg-surface-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition ${
+                    errors.name ? 'border-red-500 focus:ring-red-500/30' : 'border-surface-600'
+                  }`}
                   required
                 />
+                {errors.name && <p className="mt-1 text-xs text-red-400">{errors.name}</p>}
+                <p className="mt-1 text-xs text-gray-500">Only alphabets and spaces, min 2 characters</p>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1.5">Department</label>
-                <input
-                  type="text"
+                <label className="block text-sm font-medium mb-1.5">Department <span className="text-primary-400">*</span></label>
+                <select
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-surface-900 border border-surface-600 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition"
+                  className={`w-full px-3.5 py-2.5 rounded-lg bg-surface-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition ${
+                    errors.department ? 'border-red-500 focus:ring-red-500/30' : 'border-surface-600'
+                  }`}
                   required
-                />
+                >
+                  <option value="">Select department</option>
+                  {DEPARTMENTS.map((dept) => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
+                {errors.department && <p className="mt-1 text-xs text-red-400">{errors.department}</p>}
               </div>
             </>
           )}
